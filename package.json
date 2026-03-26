@@ -59,6 +59,7 @@
     "drizzle-orm": "^0.44.7",
     "embla-carousel-react": "^8.3.0",
     "express": "^4.21.1",
+    "framer-motion": "^12.38.0",
     "groq": "^4.19.0",
     "groq-sdk": "^0.37.0",
     "input-otp": "^1.2.4",

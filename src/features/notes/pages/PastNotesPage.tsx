@@ -1,0 +1,215 @@
+import { useState, useEffect } from 'react';
+import { Search, FileText, Filter, Trash2 } from 'lucide-react';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card';
+import { useDatabase } from '@/hooks/useDatabase';
+import { toast } from 'sonner';
+import type { User, Page, Note } from '@/App';
+
+interface PastNotesPageProps {
+  user: User;
+  onNavigate: (page: Page) => void;
+  onLogout: () => void;
+  onNoteSelect: (note: Note) => void;
+}
+
+export default function PastNotesPage({ user, onNavigate, onLogout, onNoteSelect }: PastNotesPageProps) {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+  const { fetchNotes, isLoading: dbLoading, removeNote } = useDatabase();
+
+  useEffect(() => {
+    const loadNotes = async () => {
+      try {
+        if (user.id) {
+          const dbNotes = await fetchNotes(user.id);
+          setNotes(dbNotes);
+        }
+      } catch (err) {
+        console.error('Error fetching notes:', err);
+        setNotes([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadNotes();
+  }, [user.id, fetchNotes]);
+
+  const handleDeleteNote = async (noteId: string, patientName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!confirm(`Are you sure you want to delete the note for ${patientName}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingNoteId(noteId);
+    try {
+      const success = await removeNote(noteId);
+      if (success) {
+        setNotes(notes.filter(note => note.id !== noteId));
+        toast.success('Note deleted successfully');
+      } else {
+        toast.error('Failed to delete note');
+      }
+    } catch (err) {
+      console.error('Error deleting note:', err);
+      toast.error('Failed to delete note');
+    } finally {
+      setDeletingNoteId(null);
+    }
+  };
+
+  const filteredNotes = notes.filter(note => {
+    const matchesSearch = note.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         note.chiefComplaint?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterType === 'all' || note.noteType === filterType;
+    return matchesSearch && matchesFilter;
+  });
+
+  if (isLoading || dbLoading) {
+    return (
+      <DashboardLayout user={user} currentPage="past-notes" onNavigate={onNavigate} onLogout={onLogout}>
+        <div className="flex items-center justify-center py-12">
+          <p className="text-muted-foreground">Loading notes...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout user={user} currentPage="past-notes" onNavigate={onNavigate} onLogout={onLogout}>
+      <div className="space-y-4 sm:space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Past Notes</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            View and manage all your clinical documentation
+          </p>
+        </div>
+
+        {/* Search and Filter */}
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by patient name or complaint..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <Filter className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="SOAP">SOAP Notes</SelectItem>
+              <SelectItem value="Progress">Progress Notes</SelectItem>
+              <SelectItem value="Consultation">Consultation</SelectItem>
+              <SelectItem value="H&P">H&P</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Notes List */}
+        {filteredNotes.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileText className="w-12 sm:w-16 h-12 sm:h-16 text-muted-foreground/30 mb-4" />
+              <h3 className="text-base sm:text-lg font-semibold mb-2">No notes found</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground text-center px-4">
+                {searchTerm || filterType !== 'all' 
+                  ? 'Try adjusting your search or filters'
+                  : 'Create your first clinical note to get started'}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2 sm:space-y-3">
+            {filteredNotes.map((note) => (
+              <Card 
+                key={note.id}
+                className="cursor-pointer hover:border-primary transition-colors"
+                onClick={() => onNoteSelect(note)}
+              >
+                <CardContent className="p-3 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                    <div className="flex-1 min-w-0 w-full">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                        <h3 className="font-semibold text-base sm:text-lg truncate">
+                          {note.patientName}
+                        </h3>
+                        <span className="px-2 sm:px-3 py-0.5 sm:py-1 text-xs rounded-full bg-primary-100 text-primary-700 font-medium w-fit">
+                          {note.noteType}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="font-medium">Date:</span>
+                          <span className="truncate">{new Date(note.date).toLocaleDateString()} {new Date(note.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Duration:</span>
+                          <span>{Math.floor(note.duration / 60)}:{(note.duration % 60).toString().padStart(2, '0')} min</span>
+                        </div>
+                        {note.patientAge && (
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Age:</span>
+                            <span>{note.patientAge}</span>
+                          </div>
+                        )}
+                        {note.chiefComplaint && (
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="font-medium">Complaint:</span>
+                            <span className="truncate">{note.chiefComplaint}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                      <Button variant="ghost" size="sm" className="w-full sm:w-auto whitespace-nowrap text-xs sm:text-sm">
+                        View Note
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full sm:w-auto whitespace-nowrap text-xs sm:text-sm text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => handleDeleteNote(note.id, note.patientName, e)}
+                        disabled={deletingNoteId === note.id}
+                      >
+                        <Trash2 className="w-3 sm:w-4 h-3 sm:h-4 mr-2" />
+                        {deletingNoteId === note.id ? 'Deleting...' : 'Delete'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Stats */}
+        {filteredNotes.length > 0 && (
+          <div className="flex items-center justify-between text-sm text-muted-foreground p-4 bg-muted rounded-lg">
+            <span>
+              Showing {filteredNotes.length} {filteredNotes.length === 1 ? 'note' : 'notes'}
+            </span>
+            <span>
+              Total time recorded: {Math.round(filteredNotes.reduce((sum, note) => sum + note.duration, 0) / 60)} minutes
+            </span>
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}

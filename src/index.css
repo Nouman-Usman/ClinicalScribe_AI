@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import './design-system/tokens.css';
 
 @tailwind base;
 @tailwind components;
@@ -95,7 +96,7 @@
   * {
     @apply border-border;
   }
-  
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -120,6 +121,31 @@
   }
 }
 
+@layer components {
+  /* Glassmorphism Card */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+  }
+
+  /* Neumorphic raised surface */
+  .neu-raised {
+    box-shadow: var(--neu-raised);
+  }
+
+  /* Neumorphic inset surface */
+  .neu-inset {
+    box-shadow: var(--neu-inset);
+  }
+
+  /* Gradient mesh background */
+  .mesh-gradient {
+    background-image: var(--gradient-mesh);
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
@@ -135,5 +161,11 @@
 
   .recording-pulse {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Touch-friendly target size */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
