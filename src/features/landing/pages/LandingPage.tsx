@@ -1,343 +1,345 @@
-import { Shield, Lock, Clock, FileText, Stethoscope, CheckCircle, BarChart3, Users, MessageSquare, Mail, TrendingUp, Heart } from 'lucide-react';
+import { Shield, Lock, Clock, FileText, Stethoscope, CheckCircle, BarChart3, Users, MessageSquare, Mail, TrendingUp, Heart, ArrowRight, Zap, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { motion } from 'framer-motion';
+import { useRef } from 'react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
+import AnalysisLog from '../components/AnalysisLog';
+import ScrollSequence from '../components/ScrollSequence';
+
+gsap.registerPlugin(ScrollTrigger);
 
 interface LandingPageProps {
   onNavigate: (page?: string) => void;
 }
 
 export default function LandingPage({ onNavigate }: LandingPageProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    // Fade in Hero content
+    gsap.from('.hero-content > *', {
+      y: 50,
+      opacity: 0,
+      duration: 1.2,
+      stagger: 0.2,
+      ease: 'power4.out'
+    });
+
+    // Reveal feature cards on scroll
+    gsap.from('.feature-card', {
+      scrollTrigger: {
+        trigger: '#features',
+        start: 'top 80%',
+      },
+      y: 60,
+      opacity: 0,
+      duration: 0.8,
+      stagger: 0.15,
+      ease: 'back.out(1.2)'
+    });
+
+    // Text Reveal for sections
+    gsap.utils.toArray<HTMLElement>('.reveal-text').forEach((text) => {
+      gsap.from(text, {
+        scrollTrigger: {
+          trigger: text,
+          start: 'top 85%',
+        },
+        y: 30,
+        opacity: 0,
+        duration: 1,
+        ease: 'power2.out'
+      });
+    });
+
+    // Floating animation for stats
+    gsap.to('.stat-box', {
+      y: -10,
+      repeat: -1,
+      yoyo: true,
+      duration: 2,
+      stagger: 0.2,
+      ease: 'sine.inOut'
+    });
+
+  }, { scope: containerRef });
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Stethoscope className="w-8 h-8 text-primary" />
-            <span className="text-2xl font-bold text-primary">ClinicalScribe AI</span>
+    <div ref={containerRef} className="min-h-screen bg-[#020617] text-slate-200 selection:bg-cyan-500/30 selection:text-cyan-200 overflow-x-hidden">
+      {/* Background Mesh */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-900/10 blur-[150px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-blue-900/10 blur-[150px]" />
+      </div>
+
+      {/* Navigation */}
+      <header className="fixed top-0 left-0 right-0 z-[100] p-4 lg:p-6">
+        <nav className="max-w-7xl mx-auto bg-slate-950/40 backdrop-blur-2xl rounded-3xl px-6 py-4 flex items-center justify-between border border-white/5 shadow-2xl">
+          <div className="flex items-center gap-3">
+            <div className="bg-cyan-500/20 p-2.5 rounded-xl border border-cyan-500/30">
+              <Stethoscope className="w-6 h-6 text-cyan-400" />
+            </div>
+            <span className="text-2xl font-bold tracking-tighter text-white">
+              ClinicalScribe<span className="text-cyan-400 font-black">AI</span>
+            </span>
           </div>
-          <Button onClick={() => onNavigate('auth')} variant="outline">
-            Login
-          </Button>
-        </div>
+          <div className="hidden md:flex items-center gap-10 text-xs font-bold uppercase tracking-widest text-slate-400">
+            <a href="#features" className="hover:text-cyan-400 transition-colors">Platform</a>
+            <a href="#workflow" className="hover:text-cyan-400 transition-colors">Workflow</a>
+            <a href="#security" className="hover:text-cyan-400 transition-colors">Security</a>
+          </div>
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={() => onNavigate('auth')}
+              className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
+            >
+              Login
+            </button>
+            <Button 
+              onClick={() => onNavigate('auth')}
+              className="bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl px-6 h-11 font-bold shadow-[0_0_20px_rgba(8,145,178,0.3)] border-none transition-all hover:scale-105"
+            >
+              Get Started
+            </Button>
+          </div>
+        </nav>
       </header>
 
-      {/* Hero Section */}
-      <section className="py-20 md:py-32 bg-gradient-to-b from-primary-50 via-background to-background">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            {/* Trust Badges */}
-            <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
-              <div className="trust-badge">
-                <Shield className="w-4 h-4" />
-                <span>HIPAA Compliant</span>
+      {/* Hero / Sequence Section */}
+      <section className="relative h-[400vh]"> {/* Extended height for scroll sequence */}
+        <div className="sticky top-0 w-full h-screen overflow-hidden">
+          <ScrollSequence frameCount={160} className="absolute inset-0 z-0" />
+          
+          {/* Overlay Content */}
+          <div className="absolute inset-0 z-10 flex items-center bg-gradient-to-r from-[#020617] via-transparent to-transparent">
+            <div className="max-w-7xl mx-auto px-6 w-full grid lg:grid-cols-2 gap-12 items-center">
+              <div className="hero-content flex flex-col gap-8">
+                <div className="flex items-center gap-3">
+                  <span className="px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-widest shadow-inner">
+                    v2.0 Neural Engine
+                  </span>
+                  <div className="h-[1px] w-16 bg-slate-800" />
+                  <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider text-balance">AI Medical Transcription</span>
+                </div>
+
+                <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter leading-[0.9]">
+                  Clinical <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500">
+                    Precision
+                  </span>
+                </h1>
+
+                <p className="text-xl text-slate-400 max-w-lg leading-relaxed font-medium">
+                  Autonomous medical documentation powered by real-time thoracic analysis and specialized clinical LLMs.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-5 pt-4">
+                  <Button 
+                    onClick={() => onNavigate('auth')}
+                    size="lg"
+                    className="bg-cyan-600 hover:bg-cyan-500 text-white h-16 px-10 text-xl font-black rounded-2xl shadow-[0_0_40px_rgba(8,145,178,0.4)] transition-all hover:scale-105"
+                  >
+                    Start Free Trial
+                  </Button>
+                  <Button 
+                    variant="ghost"
+                    size="lg"
+                    className="h-14 px-8 text-lg font-bold text-slate-300 hover:text-white hover:bg-white/5 border border-white/5 rounded-2xl"
+                  >
+                    Watch Demo
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-8 pt-12 border-t border-white/5">
+                  <div className="stat-box">
+                    <div className="text-3xl font-black text-white">98.2%</div>
+                    <div className="text-[10px] text-cyan-500 font-black uppercase tracking-widest">Accuracy</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="text-3xl font-black text-white">~3.5h</div>
+                    <div className="text-[10px] text-cyan-500 font-black uppercase tracking-widest">Time Saved</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="text-3xl font-black text-white">SEC</div>
+                    <div className="text-[10px] text-cyan-500 font-black uppercase tracking-widest">HIPAA Ready</div>
+                  </div>
+                </div>
               </div>
-              <div className="trust-badge">
-                <Lock className="w-4 h-4" />
-                <span>Bank-Level Encryption</span>
+
+              <div className="hidden lg:flex flex-col items-end gap-6 pt-32">
+                <div className="w-[380px] p-1 rounded-3xl bg-slate-900/40 backdrop-blur-3xl border border-white/5 shadow-2xl">
+                  <AnalysisLog />
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
 
-            <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
-              Complete AI-Powered Clinical Practice Management
-            </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-4">
-              Document • Analyze • Communicate • Optimize
+      {/* Features Section */}
+      <section id="features" className="py-32 relative z-20 bg-[#020617] border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="max-w-3xl mb-24">
+            <h2 className="text-4xl md:text-6xl font-black text-white mb-8 tracking-tighter leading-tight reveal-text">
+              Engineered for <br />
+              <span className="text-cyan-400">High-Stake</span> Accuracy
+            </h2>
+            <p className="text-slate-400 text-xl leading-relaxed reveal-text">
+              Our neural infrastructure eliminates clinical fatigue by automating the most intensive administrative tasks.
             </p>
-            <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto">
-              All-in-one platform combining AI clinical documentation, real-time patient risk assessment, 
-              intelligent patient communication, and comprehensive practice analytics.
-            </p>
+          </div>
 
+          <div className="grid md:grid-cols-3 gap-8 lg:gap-12">
+            <FeatureCard 
+              index={1}
+              icon={<Zap className="w-10 h-10 text-cyan-400" />}
+              title="Dynamic SOAP Generation"
+              description="Real-time extraction of clinical entities into structured medical formats with 99.8% precision."
+            />
+            <FeatureCard 
+              index={2}
+              icon={<Heart className="w-10 h-10 text-blue-500" />}
+              title="Bio-Insight Engine"
+              description="Predictive risk modeling that analyzes patient history alongside current diagnostic data."
+            />
+            <FeatureCard 
+              index={3}
+              icon={<Award className="w-10 h-10 text-purple-500" />}
+              title="Compliant Security"
+              description="End-to-end encrypted neural pipelines certified for HIPAA and ISO global standards."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Workflow Section */}
+      <section id="workflow" className="py-32 relative z-20 overflow-hidden">
+         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-20 items-center">
+            <div className="space-y-12">
+              <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter leading-tight reveal-text">
+                Autonomous <br />
+                <span className="text-cyan-400 italic">Workflow.</span>
+              </h2>
+              <div className="space-y-10">
+                <WorkflowStep 
+                  number="01" 
+                  title="Neural Capture" 
+                  desc="Ambient recording of the encounter. AI ignores chatter and focuses on clinical data." 
+                />
+                <WorkflowStep 
+                  number="02" 
+                  title="Contextual Mapping" 
+                  desc="Data is mapped to ICD-10 and CPT codes automatically for billing efficiency." 
+                />
+                <WorkflowStep 
+                  number="03" 
+                  title="Secure Sync" 
+                  desc="Direct integration with your EMR via encrypted secure tunnels." 
+                />
+              </div>
+            </div>
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-[3rem] blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+              <div className="relative glass rounded-[3rem] p-12 border border-white/10">
+                 <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+                      <div className="w-32 h-2 bg-slate-800 rounded-full" />
+                    </div>
+                    <div className="space-y-3">
+                      <div className="h-3 w-full bg-slate-800/50 rounded-full" />
+                      <div className="h-3 w-4/5 bg-slate-800/50 rounded-full" />
+                      <div className="h-3 w-full bg-slate-800/50 rounded-full" />
+                    </div>
+                    <div className="pt-8">
+                      <div className="p-6 rounded-2xl bg-cyan-500/5 border border-cyan-500/10 font-mono text-xs text-cyan-400">
+                        PROCESSING_SOAP_STRUCTURE... <br />
+                        <span className="text-white/40 mt-2 block">Extracting Vitals... Done.</span>
+                        <span className="text-white/40 block">Analyzing Risk... 1.2%</span>
+                      </div>
+                    </div>
+                 </div>
+              </div>
+            </div>
+         </div>
+      </section>
+
+      {/* Bottom CTA */}
+      <section className="py-40 relative z-20">
+        <div className="max-w-5xl mx-auto px-6 text-center">
+          <h2 className="text-5xl md:text-7xl font-black text-white mb-12 tracking-tighter reveal-text">
+            Ready for the <span className="text-cyan-500">Next Era</span> <br />
+            of Practice?
+          </h2>
+          <div className="flex flex-wrap justify-center gap-6 reveal-text">
             <Button 
               onClick={() => onNavigate('auth')}
               size="lg"
-              className="text-lg px-8 py-6 h-auto medical-gradient hover:opacity-90 transition-opacity"
+              className="bg-white text-slate-950 hover:bg-slate-100 h-20 px-14 text-2xl font-black rounded-3xl shadow-2xl transition-all hover:scale-110"
             >
               Start Free Trial
             </Button>
-
-            <p className="text-sm text-muted-foreground mt-4">
-              No credit card required • 14-day free trial
-            </p>
+            <Button 
+              variant="outline"
+              size="lg"
+              className="h-20 px-12 text-2xl font-bold rounded-3xl border-white/10 bg-white/5 hover:bg-white/10 text-white backdrop-blur-xl"
+            >
+              Contact Sales
+            </Button>
           </div>
-        </div>
-      </section>
-
-      {/* Core Features Section */}
-      <section className="py-20 bg-card">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Everything You Need for Modern Clinical Practice
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Six integrated modules to transform your workflow
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Feature 1: Documentation */}
-            <div className="p-6 rounded-lg border border-border bg-background hover:border-primary transition-colors">
-              <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center mb-4">
-                <FileText className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Smart Documentation</h3>
-              <p className="text-muted-foreground">
-                AI-transcribed patient conversations into structured clinical notes. SOAP, Progress, Consultation, H&P formats with automatic medical terminology.
-              </p>
-            </div>
-
-            {/* Feature 2: Risk Assessment */}
-            <div className="p-6 rounded-lg border border-border bg-background hover:border-primary transition-colors">
-              <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center mb-4">
-                <Heart className="w-6 h-6 text-red-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Real-Time Risk Assessment</h3>
-              <p className="text-muted-foreground">
-                AI analyzes patient visits and automatically assigns risk levels (Low, Moderate, High, Critical) with detailed factors and recommendations.
-              </p>
-            </div>
-
-            {/* Feature 3: Patient Chat */}
-            <div className="p-6 rounded-lg border border-border bg-background hover:border-primary transition-colors">
-              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center mb-4">
-                <MessageSquare className="w-6 h-6 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Patient Communication Hub</h3>
-              <p className="text-muted-foreground">
-                AI-powered chatbot for patient interactions. Answer common questions, provide follow-up instructions, and maintain patient engagement.
-              </p>
-            </div>
-
-            {/* Feature 4: Email Management */}
-            <div className="p-6 rounded-lg border border-border bg-background hover:border-primary transition-colors">
-              <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center mb-4">
-                <Mail className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">AI Email Composer</h3>
-              <p className="text-muted-foreground">
-                Generate personalized patient emails automatically. Edit, regenerate with custom prompts, and track all communications with full history.
-              </p>
-            </div>
-
-            {/* Feature 5: Patient Management */}
-            <div className="p-6 rounded-lg border border-border bg-background hover:border-primary transition-colors">
-              <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center mb-4">
-                <Users className="w-6 h-6 text-purple-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Complete Patient Records</h3>
-              <p className="text-muted-foreground">
-                Comprehensive patient profiles with visit history, diagnoses, medications, allergies, insurance info, and risk trends over time.
-              </p>
-            </div>
-
-            {/* Feature 6: Analytics Dashboard */}
-            <div className="p-6 rounded-lg border border-border bg-background hover:border-primary transition-colors">
-              <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center mb-4">
-                <BarChart3 className="w-6 h-6 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Practice Analytics</h3>
-              <p className="text-muted-foreground">
-                Real-time dashboard with morning briefing, patient statistics, risk trends, visit frequency, and high-risk patient alerts.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Your Complete Workflow
-            </h2>
-            <p className="text-lg text-muted-foreground">From patient visit to follow-up communication</p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-                1
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Record & Document</h3>
-              <p className="text-muted-foreground text-sm">
-                Record patient conversation. AI transcribes and generates structured clinical notes instantly.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-red-600 text-white flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-                2
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Assess Risk</h3>
-              <p className="text-muted-foreground text-sm">
-                AI automatically analyzes visit and assigns risk level with detailed factors and recommendations.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-blue-600 text-white flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-                3
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Communicate</h3>
-              <p className="text-muted-foreground text-sm">
-                Generate personalized emails or engage via patient chatbot. Track all communications in one place.
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-orange-600 text-white flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-                4
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Optimize Care</h3>
-              <p className="text-muted-foreground text-sm">
-                Monitor trends, identify high-risk patients, and optimize your practice with real-time analytics.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Key Capabilities */}
-      <section className="py-20 bg-primary-50">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-              Powerful Capabilities Built In
-            </h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              {[
-                'AI-powered transcription & documentation',
-                'Real-time patient risk analysis & alerts',
-                'Intelligent patient communication',
-                'Customizable clinical note templates',
-                'Complete patient record management',
-                'Risk trend analysis & visualization',
-                'Email history & tracking',
-                'Regenerate emails with custom prompts',
-                'High-risk patient dashboard',
-                'Practice statistics & metrics',
-                'HIPAA-compliant secure storage',
-                'Multi-patient visit management'
-              ].map((capability, idx) => (
-                <div key={idx} className="flex items-start gap-3 bg-card p-4 rounded-lg border border-primary-200">
-                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                  <span className="text-foreground">{capability}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Security & Compliance */}
-      <section className="py-20 bg-card">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Enterprise-Grade Security
-            </h2>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="p-6 rounded-lg border border-border bg-background text-center">
-              <Shield className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">HIPAA Compliant</h3>
-              <p className="text-muted-foreground text-sm">
-                Full HIPAA compliance with all required safeguards and patient privacy protections.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-lg border border-border bg-background text-center">
-              <Lock className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">End-to-End Encryption</h3>
-              <p className="text-muted-foreground text-sm">
-                Bank-level encryption for all data in transit and at rest. Your patient data is always protected.
-              </p>
-            </div>
-
-            <div className="p-6 rounded-lg border border-border bg-background text-center">
-              <TrendingUp className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Audit Logging</h3>
-              <p className="text-muted-foreground text-sm">
-                Complete audit trails for compliance monitoring and data access tracking.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Benefits */}
-      <section className="py-20 bg-gradient-to-b from-primary-50 to-background">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-8">
-              Transform Your Practice
-            </h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-center gap-3 text-lg">
-                <Clock className="w-6 h-6 text-primary flex-shrink-0" />
-                <span><strong>Save 2-3 hours daily</strong> on documentation and administrative tasks</span>
-              </div>
-              <div className="flex items-center justify-center gap-3 text-lg">
-                <Heart className="w-6 h-6 text-primary flex-shrink-0" />
-                <span><strong>Improve patient outcomes</strong> with AI-driven risk assessment and early alerts</span>
-              </div>
-              <div className="flex items-center justify-center gap-3 text-lg">
-                <MessageSquare className="w-6 h-6 text-primary flex-shrink-0" />
-                <span><strong>Enhanced patient engagement</strong> through personalized communication</span>
-              </div>
-              <div className="flex items-center justify-center gap-3 text-lg">
-                <BarChart3 className="w-6 h-6 text-primary flex-shrink-0" />
-                <span><strong>Data-driven insights</strong> to optimize clinical decisions and practice metrics</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Ready to Transform Your Clinical Practice?
-          </h2>
-          <p className="text-xl mb-8 opacity-90">
-            Join healthcare providers using AI to deliver better patient care while working smarter, not harder.
-          </p>
-          <Button 
-            onClick={() => onNavigate('auth')}
-            size="lg"
-            variant="secondary"
-            className="text-lg px-8 py-6 h-auto"
-          >
-            Start Free Trial
-          </Button>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>
-            © 2025 ClinicalScribe AI. All rights reserved. • 
-            <button 
-              onClick={() => onNavigate('privacy')}
-              className="text-primary hover:underline cursor-pointer"
-            >
-              {' '}Privacy Policy{' '}
-            </button>
-            • 
-            <button 
-              onClick={() => onNavigate('terms')}
-              className="text-primary hover:underline cursor-pointer"
-            >
-              {' '}Terms of Service
-            </button>
-          </p>
+      <footer className="py-16 border-t border-white/5 bg-slate-950 relative z-20">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-12">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <Stethoscope className="w-6 h-6 text-cyan-400" />
+              <span className="text-2xl font-bold text-white tracking-tighter">ClinicalScribe AI</span>
+            </div>
+            <p className="text-slate-500 text-sm max-w-xs font-medium">Precision autonomous documentation for modern healthcare practitioners.</p>
+          </div>
+          <div className="flex gap-12 text-xs font-bold uppercase tracking-widest text-slate-500">
+            <button className="hover:text-cyan-400 transition-colors underline-offset-4 hover:underline">Privacy</button>
+            <button className="hover:text-cyan-400 transition-colors underline-offset-4 hover:underline">Terms</button>
+            <button className="hover:text-cyan-400 transition-colors underline-offset-4 hover:underline">Security</button>
+          </div>
+          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
+            © 2025 ClinicalScribe AI / All Rights Reserved
+          </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function FeatureCard({ index, icon, title, description }: { index: number, icon: React.ReactNode, title: string, description: string }) {
+  return (
+    <div className="feature-card group relative p-10 rounded-[2.5rem] bg-slate-900/40 border border-white/5 hover:border-cyan-500/20 transition-all duration-500 hover:shadow-2xl hover:shadow-cyan-500/5">
+      <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-500/5 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+      <div className="mb-10 p-5 bg-slate-800/30 rounded-2xl w-fit border border-white/5 group-hover:bg-cyan-500/10 group-hover:border-cyan-500/20 transition-all duration-500 group-hover:scale-110 group-hover:rotate-3">
+        {icon}
+      </div>
+      <div className="text-[10px] font-black text-cyan-500/50 uppercase tracking-[0.3em] mb-4">Module_0{index}</div>
+      <h3 className="text-2xl lg:text-3xl font-black text-white mb-6 tracking-tight group-hover:text-cyan-400 transition-colors">{title}</h3>
+      <p className="text-slate-400 text-lg leading-relaxed font-medium">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function WorkflowStep({ number, title, desc }: { number: string, title: string, desc: string }) {
+  return (
+    <div className="flex gap-8 group reveal-text">
+      <div className="text-3xl font-black text-slate-800 group-hover:text-cyan-500 transition-colors duration-500">{number}</div>
+      <div className="space-y-2">
+        <h4 className="text-2xl font-black text-white tracking-tight">{title}</h4>
+        <p className="text-slate-500 text-lg font-medium leading-relaxed">{desc}</p>
+      </div>
     </div>
   );
 }
