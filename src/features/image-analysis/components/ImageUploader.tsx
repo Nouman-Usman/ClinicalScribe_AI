@@ -37,28 +37,37 @@ export function ImageUploader({ onFileSelect, selectedFile, resetAnalysis }: Ima
     };
 
     const handleFile = (file: File) => {
-        const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/dicom'];
-        // For now we allow any file but in real app we'd validate deeply. 
-        // Checking extension for .nii or .dcm manually as mime types can be tricky
-        const extension = file.name.split('.').pop()?.toLowerCase();
+        const extension = file.name.split('.').pop()?.toLowerCase() || '';
+        const validExtensions = ['png', 'jpg', 'jpeg', 'dcm', 'nii', 'dicom'];
+        const validMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
 
-        if (validTypes.includes(file.type) || ['nii', 'dcm', 'dicom'].includes(extension || '')) {
-            onFileSelect(file);
+        const isValid = validMimeTypes.includes(file.type) || validExtensions.includes(extension);
 
-            // Create preview for images
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setPreview(reader.result as string);
-                };
-                reader.readAsDataURL(file);
-            } else {
-                setPreview(null);
-            }
-            resetAnalysis();
-        } else {
-            toast.error('Invalid file type. Please upload PNG, JPG, DICOM or NII files.');
+        if (!isValid) {
+            toast.error(`Invalid file: ${extension}. Supported: PNG, JPG, DICOM, NII`);
+            console.warn('[Upload] Invalid file type:', file.type, 'Extension:', extension);
+            return;
         }
+
+        console.log('[Upload] File accepted:', file.name, 'Type:', file.type, 'Size:', file.size);
+        onFileSelect(file);
+
+        // Preview for image files
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                setPreview(reader.result as string);
+            };
+            reader.onerror = () => {
+                console.warn('[Upload] Preview failed for:', file.name);
+                setPreview(null);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            setPreview(null);
+        }
+
+        resetAnalysis();
     };
 
     const handleRemove = (e: React.MouseEvent) => {

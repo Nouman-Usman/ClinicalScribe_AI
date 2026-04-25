@@ -36,6 +36,48 @@ export function MedicalImageViewer({
         handleReset();
     }, [imageUrl]);
 
+    // Keyboard navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!containerRef.current) return;
+
+            switch (e.key) {
+                case '+':
+                case '=':
+                    e.preventDefault();
+                    setScale(prev => Math.min(prev + 0.25, 4));
+                    break;
+                case '-':
+                    e.preventDefault();
+                    setScale(prev => Math.max(prev - 0.25, 0.5));
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    setPosition(prev => ({ ...prev, y: prev.y + 20 }));
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    setPosition(prev => ({ ...prev, y: prev.y - 20 }));
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    setPosition(prev => ({ ...prev, x: prev.x + 20 }));
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    setPosition(prev => ({ ...prev, x: prev.x - 20 }));
+                    break;
+                case 'r':
+                    e.preventDefault();
+                    handleReset();
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     const handleZoomIn = () => setScale(prev => Math.min(prev + 0.25, 4));
     const handleZoomOut = () => setScale(prev => Math.max(prev - 0.25, 0.5));
     const handleReset = () => {
@@ -62,18 +104,28 @@ export function MedicalImageViewer({
     return (
         <div className="flex flex-col h-full bg-black/95 rounded-xl overflow-hidden shadow-2xl border border-white/10 relative group">
             {/* Top Toolbar */}
-            <div className="h-12 bg-card/10 backdrop-blur border-b border-white/10 flex items-center justify-between px-4 z-20">
+            <div className="h-12 bg-card/10 backdrop-blur border-b border-white/10 flex items-center justify-between px-4 z-20" role="toolbar" aria-label="Image viewer controls">
                 <div className="flex items-center gap-1">
                     <span className="text-xs font-mono text-cyan-400 opacity-70">SERIES: 1045</span>
                     <span className="text-xs font-mono text-white/40 mx-2">|</span>
-                    <span className="text-xs font-mono text-cyan-400 opacity-70">ZOOM: {(scale * 100).toFixed(0)}%</span>
+                    <span className="text-xs font-mono text-cyan-400 opacity-70" aria-live="polite">ZOOM: {(scale * 100).toFixed(0)}%</span>
                 </div>
 
                 <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10" onClick={handleZoomOut}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
+                        onClick={handleZoomOut}
+                        aria-label="Zoom out (-)">
                         <ZoomOut className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10" onClick={handleZoomIn}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
+                        onClick={handleZoomIn}
+                        aria-label="Zoom in (+)">
                         <ZoomIn className="h-4 w-4" />
                     </Button>
                     <div className="w-px h-4 bg-white/10 mx-1" />
@@ -82,10 +134,17 @@ export function MedicalImageViewer({
                         size="icon"
                         className={cn("h-8 w-8 hover:bg-white/10", showOverlays ? "text-cyan-400" : "text-white/70")}
                         onClick={() => setShowOverlays(!showOverlays)}
+                        aria-label={showOverlays ? "Hide overlays" : "Show overlays"}
+                        aria-pressed={showOverlays}
                     >
                         {showOverlays ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10" onClick={handleReset}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10"
+                        onClick={handleReset}
+                        aria-label="Reset view (r)">
                         <RotateCcw className="h-4 w-4" />
                     </Button>
                 </div>
