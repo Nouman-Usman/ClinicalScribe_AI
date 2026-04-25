@@ -82,6 +82,38 @@ export const visits = pgTable('visits', {
     recommendations: string[];
     followUpUrgency: string;
   }>(),
+  // Clinical intelligence fields
+  differentials: jsonb('differentials').$type<Array<{
+    rank: number;
+    condition: string;
+    icd10: string;
+    reasoning: string;
+    redFlags: string[];
+    suggestedWorkup: string[];
+  }>>(),
+  drugInteractions: jsonb('drug_interactions').$type<Array<{
+    drugs: string[];
+    severity: string;
+    interaction: string;
+    recommendation: string;
+  }>>(),
+  followUpPlan: jsonb('follow_up_plan').$type<{
+    intervalDays: number;
+    rationale: string;
+    checkItems: string[];
+    patientInstructions: string[];
+    urgentReturnSigns: string[];
+  }>(),
+  guidelineAdherence: jsonb('guideline_adherence').$type<{
+    overallStatus: string;
+    checks: Array<{
+      condition: string;
+      guidelineRef: string;
+      status: string;
+      deviation?: string;
+      recommendation?: string;
+    }>;
+  }>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => {
@@ -206,6 +238,35 @@ export const patientEmails = pgTable('patient_emails', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Image analyses table for storing medical image analysis results
+export const imageAnalyses = pgTable('image_analyses', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  patientId: uuid('patient_id').notNull().references(() => patients.id, { onDelete: 'cascade' }),
+  frontalImageUrl: text('frontal_image_url').notNull(),
+  lateralImageUrl: text('lateral_image_url').notNull(),
+  modelUsed: varchar('model_used', { length: 50 }).default('both'),
+  findings: jsonb('findings').$type<Array<{
+    id: string;
+    label: string;
+    description: string;
+    confidence: number;
+  }>>().default([]),
+  metadata: jsonb('metadata').$type<{
+    commonFindings?: string[];
+    uncommonFindings?: string[];
+  }>(),
+  confidence: integer('confidence').default(0),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => {
+  return {
+    userIdIdx: index('image_analyses_user_id_idx').on(table.userId),
+    patientIdIdx: index('image_analyses_patient_id_idx').on(table.patientId),
+  };
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   notes: many(notes),
@@ -214,6 +275,7 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   settings: one(userSettings),
   chatMessages: many(chatMessages),
   chatSessions: many(chatSessions),
+  imageAnalyses: many(imageAnalyses),
 }));
 
 export const patientsRelations = relations(patients, ({ one, many }) => ({
@@ -227,6 +289,7 @@ export const patientsRelations = relations(patients, ({ one, many }) => ({
   chatMessages: many(patientChatMessages),
   riskHistory: many(patientRiskHistory),
   emails: many(patientEmails),
+  imageAnalyses: many(imageAnalyses),
 }));
 
 export const visitsRelations = relations(visits, ({ one }) => ({
@@ -267,6 +330,17 @@ export const patientEmailsRelations = relations(patientEmails, ({ one }) => ({
   visit: one(visits, {
     fields: [patientEmails.visitId],
     references: [visits.id],
+  }),
+}));
+
+export const imageAnalysesRelations = relations(imageAnalyses, ({ one }) => ({
+  user: one(users, {
+    fields: [imageAnalyses.userId],
+    references: [users.id],
+  }),
+  patient: one(patients, {
+    fields: [imageAnalyses.patientId],
+    references: [patients.id],
   }),
 }));
 
@@ -367,3 +441,6 @@ export type NewPatientRiskHistory = typeof patientRiskHistory.$inferInsert;
 
 export type PatientEmail = typeof patientEmails.$inferSelect;
 export type NewPatientEmail = typeof patientEmails.$inferInsert;
+
+export type ImageAnalysis = typeof imageAnalyses.$inferSelect;
+export type NewImageAnalysis = typeof imageAnalyses.$inferInsert;

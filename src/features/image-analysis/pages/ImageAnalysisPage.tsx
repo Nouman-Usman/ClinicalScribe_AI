@@ -1,13 +1,24 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { MedicalImageViewer } from '@/components/analysis/MedicalImageViewer';
-import { AgentChatInterface } from '@/components/analysis/AgentChatInterface';
-import { ImageUploader } from '@/components/analysis/ImageUploader';
-import { ModelSelector } from '@/components/analysis/ModelSelector';
+import { MedicalImageViewer } from '@/features/image-analysis/components/MedicalImageViewer';
+import { AgentChatInterface } from '@/features/image-analysis/components/AgentChatInterface';
+import { ImageUploader } from '@/features/image-analysis/components/ImageUploader';
+import { ModelSelector } from '@/features/image-analysis/components/ModelSelector';
 import { analyzeImage, type AnalysisResult, type ModelId } from '@/services/imageAnalysis';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import type { User, Page } from '@/App';
+import { User as UserIcon, ArrowLeft, Search, Plus, UserPlus, Users, Loader2 } from 'lucide-react';
+import type { User, Page, Patient } from '@/App';
+import { useDatabase } from '@/hooks/useDatabase';
+import { getPatientsByUserId, createPatient, dbPatientToAppPatient } from '@/db/services';
+import { createImageAnalysis, getImageAnalysesByPatientId } from '@/db/services/imageAnalysisService';
 
 interface ImageAnalysisPageProps {
     user: User;
@@ -16,6 +27,23 @@ interface ImageAnalysisPageProps {
 }
 
 export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageAnalysisPageProps) {
+    // Patient selection state
+    const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+    const [patients, setPatients] = useState<Patient[]>([]);
+    const [patientSearchQuery, setPatientSearchQuery] = useState('');
+    const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+    const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
+    const [newPatientForm, setNewPatientForm] = useState({
+        name: '',
+        age: '',
+        gender: 'M' as 'M' | 'F' | 'O',
+        phone: '',
+        email: '',
+    });
+    const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+    const [patientAnalyses, setPatientAnalyses] = useState<any[]>([]);
+
+    // Image analysis state
     const [frontalFile, setFrontalFile] = useState<File | null>(null);
     const [lateralFile, setLateralFile] = useState<File | null>(null);
     const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -27,6 +55,94 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
 
     const objectUrlsRef = useRef<{ frontal: string | null; lateral: string | null }>({ frontal: null, lateral: null });
     const abortRef = useRef<AbortController | null>(null);
+
+    // Load patients on mount
+    useEffect(() => {
+        const loadPatients = async () => {
+            if (!user.id) return;
+            setIsLoadingPatients(true);
+            try {
+                const dbPatients = await getPatientsByUserId(user.id);
+                const appPatients = dbPatients.map(dbPatientToAppPatient);
+                setPatients(appPatients);
+
+                // Auto-select patient if coming from patients page
+                const selectedPatientId = sessionStorage.getItem('selectedPatientIdForImageAnalysis');
+                if (selectedPatientId) {
+                    const patient = appPatients.find(p => p.id === selectedPatientId);
+                    if (patient) {
+                        setSelectedPatient(patient);
+                        sessionStorage.removeItem('selectedPatientIdForImageAnalysis');
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading patients:', err);
+            } finally {
+                setIsLoadingPatients(false);
+            }
+        };
+        loadPatients();
+    }, [user.id]);
+
+    // Load patient's image analyses when patient selected
+    useEffect(() => {
+        const loadAnalyses = async () => {
+            if (!selectedPatient?.id) {
+                setPatientAnalyses([]);
+                return;
+            }
+            try {
+                const analyses = await getImageAnalysesByPatientId(selectedPatient.id);
+                setPatientAnalyses(analyses || []);
+            } catch (err) {
+                console.error('Error loading analyses:', err);
+            }
+        };
+        loadAnalyses();
+    }, [selectedPatient]);
+
+    // Filter patients based on search
+    const filteredPatients = patients.filter(p =>
+        p.name.toLowerCase().includes(patientSearchQuery.toLowerCase()) ||
+        p.phone?.includes(patientSearchQuery) ||
+        p.email?.toLowerCase().includes(patientSearchQuery.toLowerCase())
+    );
+
+    // Handle new patient creation
+    const handleCreatePatient = async () => {
+        if (!newPatientForm.name.trim()) {
+            toast.error('Patient name is required');
+            return;
+        }
+
+        setIsCreatingPatient(true);
+        try {
+            const newPatient = await createPatient({
+                userId: user.id,
+                name: newPatientForm.name.trim(),
+                age: newPatientForm.age ? parseInt(newPatientForm.age) : undefined,
+                gender: newPatientForm.gender,
+                phone: newPatientForm.phone || undefined,
+                email: newPatientForm.email || undefined,
+                diagnoses: [],
+                medications: [],
+            });
+
+            if (newPatient) {
+                const appPatient = dbPatientToAppPatient(newPatient);
+                setPatients([appPatient, ...patients]);
+                setSelectedPatient(appPatient);
+                setShowNewPatientDialog(false);
+                setNewPatientForm({ name: '', age: '', gender: 'M', phone: '', email: '' });
+                toast.success(`Patient "${appPatient.name}" created successfully`);
+            }
+        } catch (err) {
+            console.error('Error creating patient:', err);
+            toast.error('Failed to create patient');
+        } finally {
+            setIsCreatingPatient(false);
+        }
+    };
 
     const frontUrl = useMemo(() => {
         if (!frontalFile) {
@@ -72,6 +188,22 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
         setLateralFile(file);
     };
 
+    const fileToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result;
+                if (typeof result === 'string') {
+                    resolve(result);
+                } else {
+                    reject(new Error('Failed to read file'));
+                }
+            };
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(file);
+        });
+    };
+
     const handleAnalyze = async () => {
         if (!frontalFile || !lateralFile) {
             toast.error('Need both frontal and lateral images');
@@ -89,6 +221,35 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
             );
             console.log('[Analysis] Complete:', data);
             setResult(data);
+
+            // Save to database if patient selected
+            if (selectedPatient) {
+                try {
+                    // Convert files to base64 for persistent storage
+                    const frontalBase64 = await fileToBase64(frontalFile);
+                    const lateralBase64 = await fileToBase64(lateralFile);
+
+                    await createImageAnalysis({
+                        userId: user.id,
+                        patientId: selectedPatient.id,
+                        frontalImageUrl: frontalBase64,
+                        lateralImageUrl: lateralBase64,
+                        modelUsed: selectedModel,
+                        findings: data.findings || [],
+                        metadata: data.metadata,
+                        confidence: Math.round((data.confidence || 0) * 100),
+                    });
+
+                    // Reload patient analyses
+                    const analyses = await getImageAnalysesByPatientId(selectedPatient.id);
+                    setPatientAnalyses(analyses || []);
+                    toast.success('Analysis saved for patient');
+                } catch (dbErr) {
+                    console.error('Error saving to database:', dbErr);
+                    toast.warning('Analysis complete but could not save to patient record');
+                }
+            }
+
             toast.success('Analysis complete');
         } catch (e) {
             const msg = e instanceof Error ? e.message : 'Analysis failed';
@@ -113,95 +274,230 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
 
     return (
         <DashboardLayout user={user} currentPage="image-analysis" onNavigate={onNavigate} onLogout={onLogout}>
-            <div className="h-[calc(100vh-100px)] min-h-screen flex flex-col animate-in fade-in duration-500 bg-white">
-                {!hasImages ? (
-                    // Mobile-First Upload Screen
-                    <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 lg:p-8">
-                        <div className="w-full max-w-2xl">
-                            {/* Header */}
-                            <div className="text-center mb-8 md:mb-12">
-                                <div className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold mb-4">
-                                    Classification-Based Analysis
-                                </div>
-                                <h1 className="text-2xl md:text-4xl font-bold text-slate-900 tracking-tight mb-2">
-                                    AiroDx Analysis
-                                </h1>
-                                <p className="text-slate-600 text-sm md:text-base mb-1">
-                                    Upload chest X-rays for instant AI analysis
-                                </p>
-                                <p className="text-slate-500 text-xs">No patient data stored • HIPAA compliant</p>
-                            </div>
-
-                            {/* Upload Section */}
-                            <div className="space-y-4 md:space-y-6">
-                                {/* Image Upload Grid - Mobile optimized */}
-                                <div className="space-y-4">
-                                    <div className="bg-white rounded-2xl border-2 border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-                                        <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                                            <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xs font-bold">1</span>
-                                            Frontal X-Ray (PA/AP)
-                                        </h3>
-                                        <ImageUploader
-                                            selectedFile={frontalFile}
-                                            onFileSelect={handleFrontalSelect}
-                                            resetAnalysis={() => setResult(null)}
-                                        />
-                                    </div>
-
-                                    <div className="bg-white rounded-2xl border-2 border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
-                                        <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                                            <span className="w-6 h-6 bg-cyan-100 rounded-full flex items-center justify-center text-cyan-600 text-xs font-bold">2</span>
-                                            Lateral X-Ray
-                                        </h3>
-                                        <ImageUploader
-                                            selectedFile={lateralFile}
-                                            onFileSelect={handleLateralSelect}
-                                            resetAnalysis={() => setResult(null)}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 animate-fade-in">
+                {/* Main Content */}
+                <div className="lg:col-span-3 space-y-6 sm:space-y-8">
+                    {/* Patient Selection - Show when no patient selected */}
+                    {!selectedPatient && (
+                        <Card className="border-2 border-dashed border-muted-foreground/30">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Users className="h-5 w-5" />
+                                    Select Patient Before Analysis
+                                </CardTitle>
+                                <CardDescription>
+                                    A patient must be linked to store images and results. Select an existing patient or create a new one.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {/* Search existing patients */}
+                                <div className="space-y-2">
+                                    <Label>Search Existing Patients</Label>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Search by name, phone, or email..."
+                                            value={patientSearchQuery}
+                                            onChange={(e) => setPatientSearchQuery(e.target.value)}
+                                            className="pl-9"
                                         />
                                     </div>
                                 </div>
 
-                                {/* Model & Execution Settings */}
-                                <div className="space-y-4">
+                                {/* Patient list */}
+                                {isLoadingPatients ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                        <span className="ml-2 text-muted-foreground">Loading patients...</span>
+                                    </div>
+                                ) : filteredPatients.length > 0 ? (
+                                    <ScrollArea className="h-[280px] rounded-md border">
+                                        <div className="p-2 space-y-1">
+                                            {filteredPatients.map((p) => (
+                                                <button
+                                                    key={p.id}
+                                                    onClick={() => setSelectedPatient(p)}
+                                                    className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors text-left"
+                                                >
+                                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                                        <UserIcon className="h-5 w-5 text-primary" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-medium truncate">{p.name}</div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {p.age && `${p.age} yrs`}
+                                                            {p.age && p.gender && ' • '}
+                                                            {p.gender && (p.gender === 'M' ? 'Male' : p.gender === 'F' ? 'Female' : 'Other')}
+                                                            {(p.phone || p.email) && ' • '}
+                                                            {p.phone || p.email}
+                                                        </div>
+                                                    </div>
+                                                    {p.riskLevel && (
+                                                        <Badge
+                                                            variant={p.riskLevel === 'high' ? 'destructive' : p.riskLevel === 'medium' ? 'secondary' : 'outline'}
+                                                            className="flex-shrink-0"
+                                                        >
+                                                            {p.riskLevel}
+                                                        </Badge>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                ) : patients.length === 0 ? (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                                        <p>No patients found</p>
+                                        <p className="text-sm">Create a new patient to start analysis</p>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                        <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                                        <p>No patients match your search</p>
+                                        <p className="text-sm">Try a different search term or create a new patient</p>
+                                    </div>
+                                )}
+
+                                {/* Create new patient button */}
+                                <div className="flex items-center gap-2 pt-2">
+                                    <div className="flex-1 h-px bg-border" />
+                                    <span className="text-xs text-muted-foreground">OR</span>
+                                    <div className="flex-1 h-px bg-border" />
+                                </div>
+
+                                <Button
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => setShowNewPatientDialog(true)}
+                                >
+                                    <UserPlus className="h-4 w-4 mr-2" />
+                                    Create New Patient
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Patient Context Header - Show when patient selected */}
+                    {selectedPatient && (
+                        <div className="flex items-center gap-4">
+                            <Button variant="ghost" size="icon" onClick={() => setSelectedPatient(null)} title="Change patient">
+                                <ArrowLeft className="h-5 w-5" />
+                            </Button>
+                            <Card className="flex-1">
+                                <CardContent className="py-3 px-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <UserIcon className="h-5 w-5 text-primary" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="font-medium">{selectedPatient.name}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {selectedPatient.age && `${selectedPatient.age} yrs`}
+                                                {selectedPatient.age && selectedPatient.gender && ' • '}
+                                                {selectedPatient.gender && (selectedPatient.gender === 'M' ? 'Male' : selectedPatient.gender === 'F' ? 'Female' : 'Other')}
+                                            </div>
+                                        </div>
+                                        <Button variant="ghost" size="sm" onClick={() => setSelectedPatient(null)}>
+                                            Change
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
+
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
+                            {selectedPatient ? `Image Analysis for ${selectedPatient.name}` : 'Medical Image Analysis'}
+                        </h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground">
+                            {selectedPatient
+                                ? 'Upload and analyze chest X-rays for instant AI insights'
+                                : 'Select or create a patient to begin image analysis'
+                            }
+                        </p>
+                    </div>
+
+                    {/* Main Content Area */}
+                    {selectedPatient && !result && !isLoading ? (
+                        // Upload + Analyze Screen (stays visible until analysis completes)
+                        <div className="space-y-6">
+                            {/* Model Selector - Prominent */}
+                            <Card className="border-2 border-primary/20 bg-gradient-to-r from-blue-50 to-cyan-50">
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Analysis Settings</CardTitle>
+                                    <CardDescription>Select model and execution mode before uploading images</CardDescription>
+                                </CardHeader>
+                                <CardContent>
                                     <ModelSelector
                                         selectedModel={selectedModel}
                                         onModelChange={setSelectedModel}
                                         executionMode={executionMode}
                                         onExecutionModeChange={setExecutionMode}
-                                        compact={true}
+                                        compact={false}
                                     />
-                                </div>
+                                </CardContent>
+                            </Card>
 
-                                {/* Analysis Button */}
-                                {hasImages && (
-                                    <Button
-                                        onClick={handleAnalyze}
-                                        disabled={isLoading}
-                                        className="w-full py-6 text-base font-semibold"
-                                        size="lg"
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                                                Analyzing...
-                                            </>
-                                        ) : (
-                                            'Start Analysis'
-                                        )}
-                                    </Button>
-                                )}
-                            </div>
+                            {/* Image Upload Section */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Upload X-Ray Images</CardTitle>
+                                    <CardDescription>Upload frontal and lateral chest X-rays for analysis</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-4">
+                                        <div className="bg-blue-50 rounded-lg border-2 border-blue-200 p-4">
+                                            <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                                                <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xs font-bold">1</span>
+                                                Frontal X-Ray (PA/AP)
+                                            </h3>
+                                            <ImageUploader
+                                                selectedFile={frontalFile}
+                                                onFileSelect={handleFrontalSelect}
+                                                resetAnalysis={() => setResult(null)}
+                                            />
+                                        </div>
 
-                            {/* Info Footer */}
-                            <div className="mt-8 md:mt-12 pt-8 border-t border-slate-200 text-center text-xs text-slate-500 space-y-2">
-                                <p>✓ JPEG, PNG supported • Max 50MB each</p>
-                                <p>✓ Analysis powered by Groq • Results cached securely</p>
-                            </div>
+                                        <div className="bg-cyan-50 rounded-lg border-2 border-cyan-200 p-4">
+                                            <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                                                <span className="w-6 h-6 bg-cyan-100 rounded-full flex items-center justify-center text-cyan-600 text-xs font-bold">2</span>
+                                                Lateral X-Ray
+                                            </h3>
+                                            <ImageUploader
+                                                selectedFile={lateralFile}
+                                                onFileSelect={handleLateralSelect}
+                                                resetAnalysis={() => setResult(null)}
+                                            />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Start Analysis Button - Prominent when images ready */}
+                            {hasImages && (
+                                <Button
+                                    onClick={handleAnalyze}
+                                    disabled={isLoading}
+                                    className="w-full py-8 text-lg font-semibold medical-gradient"
+                                    size="lg"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                            Analyzing Images...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Start Analysis ({selectedModel})
+                                        </>
+                                    )}
+                                </Button>
+                            )}
                         </div>
-                    </div>
-                ) : (
-                    // Results Screen - Mobile-First
-                    <div className="flex-1 flex flex-col overflow-hidden">
+                    ) : selectedPatient && (result || isLoading) ? (
+                        // Results Screen
+                        <div className="space-y-6">
                         {/* Desktop: Professional Layout */}
                         <div className="hidden lg:flex h-full gap-6 p-6 bg-white">
                             {/* Left: Image Viewer - 45% */}
@@ -383,30 +679,160 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="fixed bottom-6 right-6 z-50 flex gap-2">
-                            {!result && (
+                            <div className="flex gap-2 mt-6">
                                 <Button
-                                    onClick={handleAnalyze}
-                                    disabled={isLoading}
-                                    size="sm"
-                                    className="shadow-lg"
+                                    variant="outline"
+                                    onClick={handleReset}
                                 >
-                                    {isLoading ? 'Analyzing...' : 'Analyze'}
+                                    New Analysis
                                 </Button>
-                            )}
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleReset}
-                                className="shadow-lg"
-                            >
-                                Reset
-                            </Button>
+                                <Button variant="outline" onClick={() => setSelectedPatient(null)}>
+                                    Change Patient
+                                </Button>
+                            </div>
                         </div>
+                    ) : null}
+                </div>
+
+                {/* Right Sidebar - Historical Analyses */}
+                {selectedPatient && (
+                    <div className="lg:col-span-1">
+                        <Card className="sticky top-6">
+                            <CardHeader>
+                                <CardTitle className="text-base">Previous Analyses</CardTitle>
+                                <CardDescription>Stored for {selectedPatient.name}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {patientAnalyses.length > 0 ? (
+                                    <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                                        {patientAnalyses.map((analysis) => (
+                                            <button
+                                                key={analysis.id}
+                                                onClick={() => {
+                                                    // Load previous analysis
+                                                    setResult({
+                                                        imageUrl: analysis.frontal_image_url || '',
+                                                        modelUsed: analysis.model_used,
+                                                        findings: analysis.findings || [],
+                                                        metadata: analysis.metadata,
+                                                        confidence: (analysis.confidence || 0) / 100,
+                                                    });
+                                                    // Scroll to results
+                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                }}
+                                                className="w-full p-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-left transition-colors cursor-pointer"
+                                            >
+                                                <div className="text-xs text-slate-500">
+                                                    {new Date(analysis.created_at).toLocaleDateString()}
+                                                </div>
+                                                <div className="text-sm font-medium text-slate-900 line-clamp-2">
+                                                    {analysis.findings?.length || 0} findings
+                                                </div>
+                                                <div className="text-xs text-slate-500 mt-1">
+                                                    Model: {analysis.model_used}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 text-muted-foreground">
+                                        <p className="text-xs">No previous analyses</p>
+                                        <p className="text-xs mt-2">Analyses will appear here</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
                     </div>
                 )}
             </div>
+
+            {/* New Patient Dialog */}
+            <Dialog open={showNewPatientDialog} onOpenChange={setShowNewPatientDialog}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <UserPlus className="h-5 w-5" />
+                            Create New Patient
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="patientName">Patient Name *</Label>
+                            <Input
+                                id="patientName"
+                                placeholder="Enter patient name"
+                                value={newPatientForm.name}
+                                onChange={(e) => setNewPatientForm({ ...newPatientForm, name: e.target.value })}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="patientAge">Age</Label>
+                                <Input
+                                    id="patientAge"
+                                    type="number"
+                                    placeholder="Age"
+                                    value={newPatientForm.age}
+                                    onChange={(e) => setNewPatientForm({ ...newPatientForm, age: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="patientGender">Gender</Label>
+                                <Select
+                                    value={newPatientForm.gender}
+                                    onValueChange={(value: 'M' | 'F' | 'O') => setNewPatientForm({ ...newPatientForm, gender: value })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="M">Male</SelectItem>
+                                        <SelectItem value="F">Female</SelectItem>
+                                        <SelectItem value="O">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="patientPhone">Phone</Label>
+                            <Input
+                                id="patientPhone"
+                                placeholder="Phone number"
+                                value={newPatientForm.phone}
+                                onChange={(e) => setNewPatientForm({ ...newPatientForm, phone: e.target.value })}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="patientEmail">Email</Label>
+                            <Input
+                                id="patientEmail"
+                                type="email"
+                                placeholder="Email address"
+                                value={newPatientForm.email}
+                                onChange={(e) => setNewPatientForm({ ...newPatientForm, email: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowNewPatientDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleCreatePatient} disabled={isCreatingPatient}>
+                            {isCreatingPatient ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Creating...
+                                </>
+                            ) : (
+                                <>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Create Patient
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </DashboardLayout>
     );
 }

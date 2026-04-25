@@ -49,6 +49,7 @@ import {
 } from '@/db/services';
 import { isSupabaseConfigured } from '@/db/client';
 import { analyzeVisitRisk, getRiskLevelColor } from '@/services/riskAssessment';
+import { ClinicalLetterModal } from '@/features/patients/components/ClinicalLetterModal';
 
 interface PatientDetailPageProps {
   user: User;
@@ -75,6 +76,7 @@ export default function PatientDetailPage({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmailComposer, setShowEmailComposer] = useState(false);
+  const [showClinicalLetterModal, setShowClinicalLetterModal] = useState(false);
   const [reanalyzingVisitId, setReanalyzingVisitId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState({
     diagnoses: patient.diagnoses?.join(', ') || '',
@@ -286,10 +288,14 @@ export default function PatientDetailPage({
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setShowEmailComposer(true)}>
               <Send className="h-4 w-4 mr-2" />
               Email
+            </Button>
+            <Button variant="outline" onClick={() => setShowClinicalLetterModal(true)}>
+              <FileText className="h-4 w-4 mr-2" />
+              Clinical Letter
             </Button>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
               <Edit className="h-4 w-4 mr-2" />
@@ -706,6 +712,15 @@ export default function PatientDetailPage({
           doctorName={user.name}
         />
       )}
+
+      {/* Clinical Letter Modal */}
+      <ClinicalLetterModal
+        open={showClinicalLetterModal}
+        onOpenChange={setShowClinicalLetterModal}
+        patient={patient}
+        doctorName={user.name}
+        doctorSpecialty={user.specialty}
+      />
     </DashboardLayout>
   );
 }

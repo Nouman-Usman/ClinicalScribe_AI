@@ -21,6 +21,8 @@ import type { Alert as AlertType } from '@/types/alerts';
 import { generateSimulatedAlerts } from '@/lib/alertDefinitions';
 import { createVisit, updateVisitRiskAssessment, updatePatientRiskLevel, createPatientRiskHistoryEntry, getPatientVisits, getPatientsByUserId, createPatient, dbPatientToAppPatient } from '@/db/services';
 import { analyzeVisitRisk } from '@/services/riskAssessment';
+import { generatePreVisitBriefing, type PreVisitBriefing } from '@/services/textGeneration';
+import { PreVisitBriefingCard } from '@/features/recording/components/PreVisitBriefingCard';
 
 interface RecordingPageProps {
   user: User;
@@ -45,6 +47,11 @@ export default function RecordingPage({ user, patient: initialPatient, onNavigat
     email: '',
   });
   const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+
+  // Pre-visit briefing state
+  const [preVisitBriefing, setPreVisitBriefing] = useState<PreVisitBriefing | null>(null);
+  const [isLoadingBriefing, setIsLoadingBriefing] = useState(false);
+  const [briefingDismissed, setBriefingDismissed] = useState(false);
 
   // Recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -132,6 +139,59 @@ export default function RecordingPage({ user, patient: initialPatient, onNavigat
       setIsCreatingPatient(false);
     }
   };
+
+  // Generate pre-visit briefing when patient is selected
+  useEffect(() => {
+    const loadBriefing = async () => {
+      if (!selectedPatient?.id) {
+        setPreVisitBriefing(null);
+        setBriefingDismissed(false);
+        return;
+      }
+
+      // Check sessionStorage cache (per patient per day)
+      const cacheKey = `briefing-${selectedPatient.id}-${new Date().toISOString().split('T')[0]}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        setPreVisitBriefing(JSON.parse(cached));
+        setBriefingDismissed(false);
+        return;
+      }
+
+      setIsLoadingBriefing(true);
+      setBriefingDismissed(false);
+      try {
+        const visits = await getPatientVisits(selectedPatient.id);
+        const recentVisits = visits.slice(0, 3).map(v => ({
+          visitDate: v.visit_date || v.visitDate || new Date().toISOString(),
+          chiefComplaint: v.chief_complaint || v.chiefComplaint,
+          summary: v.summary,
+          diagnosis: v.diagnosis,
+          treatmentPlan: v.treatment_plan || v.treatmentPlan,
+          followUpDate: v.follow_up_date || v.followUpDate,
+        }));
+
+        const briefing = await generatePreVisitBriefing({
+          patientName: selectedPatient.name,
+          patientAge: selectedPatient.age,
+          patientGender: selectedPatient.gender,
+          diagnoses: selectedPatient.diagnoses,
+          medications: selectedPatient.medications,
+          recentVisits,
+          riskLevel: selectedPatient.riskLevel,
+          riskScore: selectedPatient.riskScore,
+        });
+
+        setPreVisitBriefing(briefing);
+        sessionStorage.setItem(cacheKey, JSON.stringify(briefing));
+      } catch (err) {
+        console.error('Error generating pre-visit briefing:', err);
+      } finally {
+        setIsLoadingBriefing(false);
+      }
+    };
+    loadBriefing();
+  }, [selectedPatient?.id]);
 
   // Use selectedPatient instead of patient prop
   const patient = selectedPatient;
@@ -574,6 +634,16 @@ export default function RecordingPage({ user, patient: initialPatient, onNavigat
                 </CardContent>
               </Card>
             </div>
+          )}
+
+          {/* Pre-Visit Briefing Card */}
+          {patient && !briefingDismissed && (
+            <PreVisitBriefingCard
+              briefing={preVisitBriefing}
+              isLoading={isLoadingBriefing}
+              patientName={patient.name}
+              onDismiss={() => setBriefingDismissed(true)}
+            />
           )}
 
           <div>

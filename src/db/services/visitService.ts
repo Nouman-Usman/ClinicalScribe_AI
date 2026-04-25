@@ -237,3 +237,26 @@ export async function getPatientVisits(patientId: string): Promise<Visit[]> {
 
   return data || [];
 }
+
+export async function saveClinicalFeaturesToVisit(
+  visitId: string,
+  features: {
+    differentials?: any;
+    drugInteractions?: any;
+    followUpPlan?: any;
+    guidelineAdherence?: any;
+    followUpDate?: string;
+  }
+): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+
+  const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+  if (features.differentials !== undefined) updates.differentials = features.differentials;
+  if (features.drugInteractions !== undefined) updates.drug_interactions = features.drugInteractions;
+  if (features.followUpPlan !== undefined) updates.follow_up_plan = features.followUpPlan;
+  if (features.guidelineAdherence !== undefined) updates.guideline_adherence = features.guidelineAdherence;
+  if (features.followUpDate !== undefined) updates.follow_up_date = features.followUpDate;
+
+  const { error } = await supabase.from('visits').update(updates).eq('id', visitId);
+  if (error) console.error('Error saving clinical features:', error);
+}

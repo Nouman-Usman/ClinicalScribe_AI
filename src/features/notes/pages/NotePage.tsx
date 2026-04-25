@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Download, Copy, RefreshCw, Edit2, Save, Trash2 } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import StructuredDataPanel from '@/components/StructuredDataPanel';
+import { DifferentialDiagnosisPanel } from '@/features/notes/components/DifferentialDiagnosisPanel';
+import { DrugInteractionPanel } from '@/features/notes/components/DrugInteractionPanel';
+import { FollowUpPlanPanel } from '@/features/notes/components/FollowUpPlanPanel';
+import { GuidelineAdherencePanel } from '@/features/notes/components/GuidelineAdherencePanel';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +14,16 @@ import { useDatabase } from '@/hooks/useDatabase';
 import { useAI } from '@/hooks/useAI';
 import type { User, Page, Note } from '@/App';
 import type { StructuredData } from '@/types/structuredData';
+import {
+  generateDifferentialDiagnosis,
+  checkDrugInteractions,
+  generateFollowUpRecommendation,
+  checkGuidelineAdherence,
+  type Differential,
+  type DrugInteraction,
+  type FollowUpPlan,
+  type GuidelineAdherence,
+} from '@/services/textGeneration';
 
 interface NotePageProps {
   user: User;
@@ -28,6 +42,58 @@ export default function NotePage({ user, note, onNavigate, onLogout, onNoteDelet
   const [isDeleting, setIsDeleting] = useState(false);
   const { editNote, saveNote, isLoading, removeNote } = useDatabase();
   const { generateStructuredNoteContent, isGenerating } = useAI();
+
+  // Clinical intelligence state
+  const [differentials, setDifferentials] = useState<Differential[]>([]);
+  const [drugInteractions, setDrugInteractions] = useState<DrugInteraction[]>([]);
+  const [followUpPlan, setFollowUpPlan] = useState<FollowUpPlan | null>(null);
+  const [guidelineAdherence, setGuidelineAdherence] = useState<GuidelineAdherence | null>(null);
+  const [isLoadingClinical, setIsLoadingClinical] = useState(false);
+
+  // Generate clinical intelligence from note on mount
+  useEffect(() => {
+    const run = async () => {
+      if (!note.transcription && !note.content) return;
+
+      const cacheKey = `clinical-${note.id}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setDifferentials(parsed.differentials || []);
+        setDrugInteractions(parsed.drugInteractions || []);
+        setFollowUpPlan(parsed.followUpPlan || null);
+        setGuidelineAdherence(parsed.guidelineAdherence || null);
+        return;
+      }
+
+      setIsLoadingClinical(true);
+      const contentText = Object.values(note.content || {}).join('\n');
+      const transcription = note.transcription || contentText;
+      const diagnosisText = note.content?.['Assessment'] || note.content?.['Diagnosis'] || note.content?.['assessment'] || '';
+      const planText = note.content?.['Plan'] || note.content?.['Treatment Plan'] || note.content?.['plan'] || '';
+
+      try {
+        const [diffs, interactions, followUp, guidelines] = await Promise.all([
+          generateDifferentialDiagnosis({ transcription }),
+          checkDrugInteractions({ newMedications: [], existingMedications: [] }),
+          generateFollowUpRecommendation({ diagnosis: diagnosisText, treatmentPlan: planText }),
+          checkGuidelineAdherence({ diagnosis: diagnosisText, treatmentPlan: planText }),
+        ]);
+
+        setDifferentials(diffs);
+        setDrugInteractions(interactions);
+        setFollowUpPlan(followUp);
+        setGuidelineAdherence(guidelines);
+
+        sessionStorage.setItem(cacheKey, JSON.stringify({ differentials: diffs, drugInteractions: interactions, followUpPlan: followUp, guidelineAdherence: guidelines }));
+      } catch (err) {
+        console.error('Error generating clinical intelligence:', err);
+      } finally {
+        setIsLoadingClinical(false);
+      }
+    };
+    run();
+  }, [note.id]);
 
   // Debug logging on mount/update
   console.log('📄 NotePage loaded with note:', {
@@ -349,15 +415,48 @@ export default function NotePage({ user, note, onNavigate, onLogout, onNoteDelet
             </Card>
           </div>
 
-          {/* Right Sidebar - Structured Data Panel */}
-          <div className="lg:col-span-1">
-            <StructuredDataPanel 
-              data={structuredData} 
+          {/* Right Sidebar - Structured Data + Clinical Intelligence */}
+          <div className="lg:col-span-1 space-y-4">
+            <StructuredDataPanel
+              data={structuredData}
               onUpdate={(data) => {
                 setStructuredData(data);
                 toast.success('Structured data updated');
               }}
             />
+
+            {/* Clinical Intelligence Panels */}
+            {isLoadingClinical && (
+              <div className="text-xs text-muted-foreground flex items-center gap-2 px-1">
+                <div className="h-3 w-3 border border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                Generating clinical insights...
+              </div>
+            )}
+
+            {differentials.length > 0 && (
+              <DifferentialDiagnosisPanel
+                differentials={differentials}
+                onSelectDiagnosis={(condition) => {
+                  const key = Object.keys(editedNote).find(k => k.toLowerCase().includes('assessment') || k.toLowerCase().includes('diagnosis'));
+                  if (key) {
+                    setEditedNote(prev => ({ ...prev, [key]: condition }));
+                    toast.success(`"${condition}" added to assessment`);
+                  }
+                }}
+              />
+            )}
+
+            {drugInteractions.length > 0 && (
+              <DrugInteractionPanel interactions={drugInteractions} />
+            )}
+
+            {guidelineAdherence && guidelineAdherence.checks.length > 0 && (
+              <GuidelineAdherencePanel adherence={guidelineAdherence} />
+            )}
+
+            {followUpPlan && followUpPlan.checkItems.length > 0 && (
+              <FollowUpPlanPanel followUpPlan={followUpPlan} />
+            )}
           </div>
         </div>
       </div>

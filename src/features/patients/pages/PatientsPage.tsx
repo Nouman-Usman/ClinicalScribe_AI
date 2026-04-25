@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Plus, Search, Mic, Eye, Loader2, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, Mail, Trash2 } from 'lucide-react';
+import { Plus, Search, Mic, Eye, Loader2, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, Mail, Trash2, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { createPatient, getPatientsByUserId, dbPatientToAppPatient, getVisitsByPatientId, deletePatient } from '@/db/services';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -588,8 +588,21 @@ export default function PatientsPage({ user, onNavigate, onViewPatient, onStartR
                       </td>
                       <td className="px-3 py-3 sm:px-4">
                         <div className="flex items-center justify-end gap-1 sm:gap-2">
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              sessionStorage.setItem('selectedPatientIdForImageAnalysis', p.id);
+                              onNavigate('image-analysis');
+                            }}
+                            title="Image Analysis"
+                            className="hidden sm:flex"
+                          >
+                            <Zap className="h-4 w-4 sm:mr-1" />
+                            <span className="hidden lg:inline">X-Ray</span>
+                          </Button>
+                          <Button
+                            size="sm"
                             variant="outline"
                             onClick={() => setAnalysisPatient(p)}
                             title="Patient Analysis"

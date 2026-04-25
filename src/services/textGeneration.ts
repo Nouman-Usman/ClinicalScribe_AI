@@ -424,3 +424,385 @@ Rules:
     return { vitals: {}, clinicalInfo: {}, symptoms: [] };
   }
 }
+
+// ─── Clinical Intelligence Functions ───────────────────────────────────────
+
+export interface Differential {
+  rank: number;
+  condition: string;
+  icd10: string;
+  reasoning: string;
+  redFlags: string[];
+  suggestedWorkup: string[];
+}
+
+export async function generateDifferentialDiagnosis(params: {
+  transcription: string;
+  patientAge?: number;
+  patientGender?: string;
+  existingDiagnoses?: string[];
+  medications?: string[];
+}): Promise<Differential[]> {
+  const { transcription, patientAge, patientGender, existingDiagnoses = [], medications = [] } = params;
+
+  const systemPrompt = `You are an expert clinical reasoning specialist. Given a consultation transcription and patient context, generate a ranked differential diagnosis list.
+
+Return ONLY valid JSON in this exact format:
+{
+  "differentials": [
+    {
+      "rank": 1,
+      "condition": "Condition Name",
+      "icd10": "ICD-10 code",
+      "reasoning": "Why this fits the presentation",
+      "redFlags": ["red flag 1", "red flag 2"],
+      "suggestedWorkup": ["test 1", "test 2"]
+    }
+  ]
+}
+
+Rules:
+- Rank 3-5 most likely differentials
+- Base reasoning on specific findings from the transcription
+- Red flags are findings that would confirm or urgently suggest this diagnosis
+- Suggested workup should be practical and evidence-based
+- Return ONLY JSON, no markdown`;
+
+  const userContent = `Patient: ${patientAge ? patientAge + ' yr' : 'age unknown'} ${patientGender || ''}
+Existing diagnoses: ${existingDiagnoses.join(', ') || 'none'}
+Current medications: ${medications.join(', ') || 'none'}
+
+Consultation transcription:
+${transcription}`;
+
+  const messages: Message[] = [{ role: 'user', content: userContent }];
+
+  try {
+    const response = await generateText(messages, systemPrompt, 0.2, 2048);
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return parsed.differentials || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('❌ Error generating differentials:', error);
+    return [];
+  }
+}
+
+export interface DrugInteraction {
+  drugs: string[];
+  severity: 'contraindicated' | 'major' | 'moderate' | 'minor';
+  interaction: string;
+  recommendation: string;
+}
+
+export async function checkDrugInteractions(params: {
+  newMedications: string[];
+  existingMedications: string[];
+  patientAge?: number;
+  patientWeight?: number;
+}): Promise<DrugInteraction[]> {
+  const { newMedications, existingMedications, patientAge, patientWeight } = params;
+
+  if (newMedications.length === 0 && existingMedications.length === 0) return [];
+
+  const allMeds = [...new Set([...newMedications, ...existingMedications])];
+  if (allMeds.length < 2) return [];
+
+  const systemPrompt = `You are a clinical pharmacist and drug safety specialist. Analyze medication lists for interactions.
+
+Return ONLY valid JSON in this format:
+{
+  "interactions": [
+    {
+      "drugs": ["drug1", "drug2"],
+      "severity": "contraindicated|major|moderate|minor",
+      "interaction": "Description of the interaction mechanism and effects",
+      "recommendation": "What the clinician should do"
+    }
+  ]
+}
+
+Severity definitions:
+- contraindicated: Should never be used together
+- major: May be life-threatening, avoid combination
+- moderate: Monitor closely, may require dose adjustment
+- minor: Clinically insignificant, minimal action needed
+
+Return ONLY JSON. If no interactions, return {"interactions": []}`;
+
+  const userContent = `Patient: ${patientAge ? patientAge + ' yr' : ''} ${patientWeight ? patientWeight + 'kg' : ''}
+New medications being prescribed: ${newMedications.join(', ') || 'none'}
+Existing patient medications: ${existingMedications.join(', ') || 'none'}
+
+Check all pairwise interactions between ALL medications listed above.`;
+
+  const messages: Message[] = [{ role: 'user', content: userContent }];
+
+  try {
+    const response = await generateText(messages, systemPrompt, 0.1, 2048);
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return parsed.interactions || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('❌ Error checking drug interactions:', error);
+    return [];
+  }
+}
+
+export interface PreVisitBriefing {
+  patientStory: string;
+  pendingActions: string[];
+  riskChanges: string;
+  suggestionItems: string[];
+  medicationsToReview: string[];
+}
+
+export async function generatePreVisitBriefing(params: {
+  patientName: string;
+  patientAge?: number;
+  patientGender?: string;
+  diagnoses?: string[];
+  medications?: string[];
+  recentVisits: Array<{
+    visitDate: string;
+    chiefComplaint?: string;
+    summary?: string;
+    diagnosis?: string;
+    treatmentPlan?: string;
+    followUpDate?: string;
+  }>;
+  riskLevel?: string;
+  riskScore?: number;
+}): Promise<PreVisitBriefing> {
+  const { patientName, patientAge, patientGender, diagnoses = [], medications = [], recentVisits, riskLevel, riskScore } = params;
+
+  const visitsText = recentVisits.slice(0, 3).map((v, i) =>
+    `Visit ${i + 1} (${new Date(v.visitDate).toLocaleDateString()}):
+  Chief complaint: ${v.chiefComplaint || 'not recorded'}
+  Diagnosis: ${v.diagnosis || 'not recorded'}
+  Plan: ${v.treatmentPlan || 'not recorded'}
+  Follow-up due: ${v.followUpDate ? new Date(v.followUpDate).toLocaleDateString() : 'not scheduled'}`
+  ).join('\n\n');
+
+  const systemPrompt = `You are an intelligent medical assistant preparing a pre-visit briefing for a physician.
+
+Return ONLY valid JSON:
+{
+  "patientStory": "2-3 sentence narrative summary of this patient's clinical trajectory",
+  "pendingActions": ["action item 1", "action item 2"],
+  "riskChanges": "One sentence about risk changes or trends",
+  "suggestionItems": ["suggested talking point 1", "suggested talking point 2"],
+  "medicationsToReview": ["medication 1 - reason to review"]
+}
+
+Be specific, concise, and clinically relevant. Return ONLY JSON.`;
+
+  const userContent = `Patient: ${patientName}, ${patientAge ? patientAge + ' yr' : ''} ${patientGender || ''}
+Active diagnoses: ${diagnoses.join(', ') || 'none documented'}
+Current medications: ${medications.join(', ') || 'none'}
+Risk level: ${riskLevel || 'unknown'} (score: ${riskScore ?? 'N/A'}/100)
+
+Recent visit history:
+${visitsText || 'No previous visits'}`;
+
+  const messages: Message[] = [{ role: 'user', content: userContent }];
+
+  try {
+    const response = await generateText(messages, systemPrompt, 0.3, 1024);
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]) as PreVisitBriefing;
+    }
+    return { patientStory: '', pendingActions: [], riskChanges: '', suggestionItems: [], medicationsToReview: [] };
+  } catch (error) {
+    console.error('❌ Error generating pre-visit briefing:', error);
+    return { patientStory: '', pendingActions: [], riskChanges: '', suggestionItems: [], medicationsToReview: [] };
+  }
+}
+
+export type ClinicalLetterType = 'referral' | 'priorAuth' | 'fitnessCert' | 'sickLeave' | 'dischargeSummary';
+
+export async function generateClinicalLetter(params: {
+  letterType: ClinicalLetterType;
+  doctorName: string;
+  doctorSpecialty?: string;
+  patientName: string;
+  patientAge?: number;
+  patientGender?: string;
+  diagnoses?: string[];
+  medications?: string[];
+  visitSummary?: string;
+  additionalContext?: string;
+}): Promise<string> {
+  const { letterType, doctorName, doctorSpecialty, patientName, patientAge, patientGender, diagnoses = [], medications = [], visitSummary, additionalContext } = params;
+
+  const letterTypeDescriptions: Record<ClinicalLetterType, string> = {
+    referral: 'specialist referral letter requesting consultation. Include reason for referral, relevant history, current medications, urgency level, and specific questions for the specialist.',
+    priorAuth: 'insurance prior authorization letter for a medication or procedure. Include diagnosis, clinical justification, evidence base, ICD-10 codes, and why alternatives are insufficient.',
+    fitnessCert: 'fitness/medical clearance certificate. State patient is fit for the specified activity, note any restrictions.',
+    sickLeave: 'sick leave / medical certificate. State patient was seen and is medically unfit for work for the specified period.',
+    dischargeSummary: 'discharge summary. Include admission reason, hospital course, procedures performed, discharge diagnosis, discharge medications, and follow-up instructions.',
+  };
+
+  const systemPrompt = `You are a medical professional writing formal clinical correspondence. Write a professional, properly formatted ${letterTypeDescriptions[letterType]}
+
+Format: Professional letter with date, recipient (if referral), patient details, body paragraphs, and signature block.
+Tone: Professional, clinical, concise.
+Do NOT include placeholder text like [NAME] — use actual provided data or omit gracefully.`;
+
+  const userContent = `Doctor: Dr. ${doctorName}${doctorSpecialty ? ', ' + doctorSpecialty : ''}
+Patient: ${patientName}, ${patientAge ? patientAge + ' years' : 'age unknown'}, ${patientGender || ''}
+Diagnoses: ${diagnoses.join(', ') || 'see clinical context'}
+Current medications: ${medications.join(', ') || 'none'}
+${visitSummary ? 'Recent visit summary: ' + visitSummary : ''}
+${additionalContext ? 'Additional context: ' + additionalContext : ''}
+
+Write the complete ${letterType} letter.`;
+
+  const messages: Message[] = [{ role: 'user', content: userContent }];
+
+  try {
+    const response = await generateText(messages, systemPrompt, 0.4, 2048);
+    return response.trim();
+  } catch (error) {
+    console.error('❌ Error generating clinical letter:', error);
+    return '';
+  }
+}
+
+export interface FollowUpPlan {
+  intervalDays: number;
+  rationale: string;
+  checkItems: string[];
+  patientInstructions: string[];
+  urgentReturnSigns: string[];
+}
+
+export async function generateFollowUpRecommendation(params: {
+  diagnosis: string;
+  treatmentPlan: string;
+  patientAge?: number;
+  riskScore?: number;
+  riskLevel?: string;
+  existingDiagnoses?: string[];
+}): Promise<FollowUpPlan> {
+  const { diagnosis, treatmentPlan, patientAge, riskScore, riskLevel, existingDiagnoses = [] } = params;
+
+  const systemPrompt = `You are an evidence-based medicine specialist. Generate a follow-up plan based on clinical context.
+
+Return ONLY valid JSON:
+{
+  "intervalDays": number (days until follow-up),
+  "rationale": "Why this interval was chosen",
+  "checkItems": ["what to assess at next visit"],
+  "patientInstructions": ["home monitoring instructions for patient"],
+  "urgentReturnSigns": ["symptoms/signs that warrant immediate return"]
+}
+
+Base interval on clinical guidelines. Typical ranges: acute 3-7d, chronic stable 30-90d, high-risk 7-14d.
+Return ONLY JSON.`;
+
+  const userContent = `Diagnosis: ${diagnosis}
+Treatment plan: ${treatmentPlan}
+Patient age: ${patientAge || 'unknown'}
+Risk level: ${riskLevel || 'unknown'} (score: ${riskScore ?? 'N/A'}/100)
+Comorbidities: ${existingDiagnoses.join(', ') || 'none'}`;
+
+  const messages: Message[] = [{ role: 'user', content: userContent }];
+
+  try {
+    const response = await generateText(messages, systemPrompt, 0.2, 1024);
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]) as FollowUpPlan;
+    }
+    return { intervalDays: 30, rationale: '', checkItems: [], patientInstructions: [], urgentReturnSigns: [] };
+  } catch (error) {
+    console.error('❌ Error generating follow-up plan:', error);
+    return { intervalDays: 30, rationale: '', checkItems: [], patientInstructions: [], urgentReturnSigns: [] };
+  }
+}
+
+export interface GuidelineCheck {
+  condition: string;
+  guidelineRef: string;
+  status: 'aligned' | 'review' | 'deviation';
+  deviation?: string;
+  recommendation?: string;
+}
+
+export interface GuidelineAdherence {
+  overallStatus: 'aligned' | 'review' | 'deviation';
+  checks: GuidelineCheck[];
+}
+
+export async function checkGuidelineAdherence(params: {
+  diagnosis: string;
+  treatmentPlan: string;
+  medications?: string[];
+  vitals?: Record<string, any>;
+  patientAge?: number;
+  existingDiagnoses?: string[];
+}): Promise<GuidelineAdherence> {
+  const { diagnosis, treatmentPlan, medications = [], vitals = {}, patientAge, existingDiagnoses = [] } = params;
+
+  const systemPrompt = `You are a clinical quality specialist who checks treatment plans against established clinical guidelines.
+
+Known guidelines you apply:
+- Hypertension: JNC 8 (BP targets <140/90 general, <150/90 for >60yr; first-line: thiazide, CCB, ACE/ARB)
+- Diabetes: ADA Standards (A1C target <7% general; metformin first-line; annual foot exam, nephropathy screening)
+- Heart failure: ACC/AHA (ACE/ARB, beta-blocker, diuretic; EF monitoring)
+- COPD: GOLD guidelines (bronchodilator, inhaled corticosteroid based on severity)
+- Asthma: GINA (step therapy, ICS; controller vs reliever)
+- Depression: APA (SSRI first-line; 6-week trial; safety assessment)
+- Atrial fibrillation: CHA2DS2-VASc for anticoagulation
+
+Return ONLY valid JSON:
+{
+  "overallStatus": "aligned|review|deviation",
+  "checks": [
+    {
+      "condition": "Condition name",
+      "guidelineRef": "Guideline name and year",
+      "status": "aligned|review|deviation",
+      "deviation": "What deviates (if applicable)",
+      "recommendation": "What to consider doing differently (if applicable)"
+    }
+  ]
+}
+
+Only check conditions that are present in the diagnosis/plan. If no recognized chronic conditions, return {"overallStatus": "aligned", "checks": []}.
+Return ONLY JSON.`;
+
+  const vitalsText = Object.entries(vitals)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+    .join(', ');
+
+  const userContent = `Diagnosis: ${diagnosis}
+Treatment plan: ${treatmentPlan}
+Medications: ${medications.join(', ') || 'none'}
+Vitals: ${vitalsText || 'not recorded'}
+Patient age: ${patientAge || 'unknown'}
+Comorbidities: ${existingDiagnoses.join(', ') || 'none'}`;
+
+  const messages: Message[] = [{ role: 'user', content: userContent }];
+
+  try {
+    const response = await generateText(messages, systemPrompt, 0.1, 2048);
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]) as GuidelineAdherence;
+    }
+    return { overallStatus: 'aligned', checks: [] };
+  } catch (error) {
+    console.error('❌ Error checking guideline adherence:', error);
+    return { overallStatus: 'aligned', checks: [] };
+  }
+}
