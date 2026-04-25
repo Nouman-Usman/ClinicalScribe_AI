@@ -82,7 +82,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
               <Stethoscope className="w-6 h-6 text-cyan-400" />
             </div>
             <span className="text-2xl font-bold tracking-tighter text-white">
-              ClinicalScribe<span className="text-cyan-400 font-black">AI</span>
+              AiroDx<span className="text-cyan-400 font-black">AI</span>
             </span>
           </div>
           <div className="hidden md:flex items-center gap-10 text-xs font-bold uppercase tracking-widest text-slate-400">
@@ -298,7 +298,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2">
               <Stethoscope className="w-6 h-6 text-cyan-400" />
-              <span className="text-2xl font-bold text-white tracking-tighter">ClinicalScribe AI</span>
+              <span className="text-2xl font-bold text-white tracking-tighter">AiroDx</span>
             </div>
             <p className="text-slate-500 text-sm max-w-xs font-medium">Precision autonomous documentation for modern healthcare practitioners.</p>
           </div>
@@ -308,7 +308,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             <button className="hover:text-cyan-400 transition-colors underline-offset-4 hover:underline">Security</button>
           </div>
           <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">
-            © 2025 ClinicalScribe AI / All Rights Reserved
+            © 2025 AiroDx / All Rights Reserved
           </div>
         </div>
       </footer>

@@ -47,7 +47,7 @@ export default function DashboardLayout({ user, currentPage, onNavigate, onLogou
             <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
-            <span className="font-bold text-lg text-primary">ClinicalScribe</span>
+            <span className="font-bold text-lg text-primary">AiroDx</span>
           </div>
           <Avatar className="h-8 w-8">
             <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`} />

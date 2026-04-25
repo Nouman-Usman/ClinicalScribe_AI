@@ -116,7 +116,7 @@ export default function AuthPage({ onLogin, onBack }: AuthPageProps) {
           {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-8">
             <Stethoscope className="w-8 h-8 text-primary" />
-            <span className="text-2xl font-bold text-primary">ClinicalScribe AI</span>
+            <span className="text-2xl font-bold text-primary">AiroDx</span>
           </div>
 
           <h2 className="text-2xl font-bold text-center mb-6">

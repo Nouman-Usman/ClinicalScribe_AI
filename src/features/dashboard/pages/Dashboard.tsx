@@ -131,7 +131,7 @@ export default function Dashboard({ user, onNavigate, onLogout }: DashboardProps
               <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
                 <Zap className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold">Get Started with ClinicalScribe</h2>
+              <h2 className="text-2xl font-bold">Get Started with AiroDx</h2>
               <p className="text-muted-foreground">
                 Your dashboard will populate with real-time analytics once you start seeing patients.
                 Begin by adding a patient or recording your first consultation.

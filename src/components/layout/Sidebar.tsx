@@ -47,7 +47,7 @@ export function Sidebar({ user, currentPage, isOpen, onToggle, onNavigate, onLog
             <div className="bg-primary/10 p-1.5 rounded-lg">
               <Stethoscope className="w-5 h-5 text-primary" />
             </div>
-            <span className="font-bold text-lg text-primary tracking-tight">ClinicalScribe</span>
+            <span className="font-bold text-lg text-primary tracking-tight">AiroDx</span>
           </div>
         ) : (
           <div className="bg-primary/10 p-2 rounded-lg">

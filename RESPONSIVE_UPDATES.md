@@ -1,4 +1,4 @@
-# ClinicalScribe AI - Responsive Design Improvements
+# AiroDx AI - Responsive Design Improvements
 
 ## Overview
 The entire application has been enhanced with comprehensive responsive design improvements to support mobile, tablet, and desktop devices seamlessly.
@@ -213,4 +213,4 @@ w-full sm:w-auto
 
 ## Conclusion
 
-The ClinicalScribe AI application is now fully responsive and optimized for use across all device sizes. All major pages support seamless viewing on mobile (375px), tablet (768px), and desktop (1440px) screens while maintaining clinical accuracy, readability, and user experience.
+The AiroDx AI application is now fully responsive and optimized for use across all device sizes. All major pages support seamless viewing on mobile (375px), tablet (768px), and desktop (1440px) screens while maintaining clinical accuracy, readability, and user experience.

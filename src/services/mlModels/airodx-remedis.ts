@@ -121,12 +121,12 @@ function normalizePredictions(predictions: any): PredictionResult[] {
   }
 
   return predictions
-    .filter(p => p && p.score > 0.1)
-    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .filter(p => p && (p.probability || p.score || 0) > 0.1)
+    .sort((a, b) => (b.probability || b.score || 0) - (a.probability || a.score || 0))
     .map(p => ({
       label: p.disease || p.name || 'Unknown',
-      confidence: p.score || 0,
-      description: `${((p.score || 0) * 100).toFixed(1)}% confidence`
+      confidence: p.probability || p.score || 0,
+      description: `${((p.probability || p.score || 0) * 100).toFixed(1)}% confidence`
     }));
 }
 

@@ -37,7 +37,7 @@ export const SMTP_CONFIG = {
   user: import.meta.env.VITE_SMTP_USER || '',
   password: import.meta.env.VITE_SMTP_PASSWORD || '',
   fromEmail: import.meta.env.VITE_SMTP_FROM_EMAIL || '',
-  fromName: import.meta.env.VITE_SMTP_FROM_NAME || 'ClinicalScribe AI',
+  fromName: import.meta.env.VITE_SMTP_FROM_NAME || 'AiroDx',
 };
 
 const EMAIL_API_URL = import.meta.env.VITE_EMAIL_API_URL || '/api/send-email';

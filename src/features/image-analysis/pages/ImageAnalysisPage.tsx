@@ -113,7 +113,7 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
 
     return (
         <DashboardLayout user={user} currentPage="image-analysis" onNavigate={onNavigate} onLogout={onLogout}>
-            <div className="h-[calc(100vh-100px)] min-h-screen flex flex-col animate-in fade-in duration-500 bg-gradient-to-b from-slate-50 to-slate-100">
+            <div className="h-[calc(100vh-100px)] min-h-screen flex flex-col animate-in fade-in duration-500 bg-white">
                 {!hasImages ? (
                     // Mobile-First Upload Screen
                     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 lg:p-8">
@@ -202,10 +202,10 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
                 ) : (
                     // Results Screen - Mobile-First
                     <div className="flex-1 flex flex-col overflow-hidden">
-                        {/* Desktop: Horizontal Layout */}
-                        <div className="hidden lg:flex h-full gap-4 p-4 bg-gradient-to-b from-slate-50 to-slate-100">
-                            {/* Left: Image Viewer - 50% */}
-                            <div className="flex-1 min-w-0 rounded-2xl overflow-hidden border-2 border-slate-200 shadow-lg bg-white">
+                        {/* Desktop: Professional Layout */}
+                        <div className="hidden lg:flex h-full gap-6 p-6 bg-white">
+                            {/* Left: Image Viewer - 45% */}
+                            <div className="flex-1 min-w-0 rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-50">
                                 <MedicalImageViewer
                                     imageUrl={displayUrl}
                                     findings={result?.findings || []}
@@ -215,25 +215,60 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
                                 />
                             </div>
 
-                            {/* Right: Results + Chat - 50% */}
-                            <div className="flex-1 min-w-0 flex flex-col gap-4">
-                                {/* Results Card */}
-                                <div className="flex-shrink-0 bg-white rounded-2xl border-2 border-slate-200 shadow-lg p-4 max-h-[40%] overflow-y-auto">
-                                    <h3 className="font-semibold text-slate-900 mb-3">Analysis Results</h3>
-                                    <div className="space-y-2">
-                                        {result?.findings?.slice(0, 5).map((f) => (
-                                            <div key={f.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer" onClick={() => setActiveFindingId(f.id)}>
-                                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
-                                                    <span className="text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</span>
-                                                </div>
-                                                <span className="text-sm text-slate-800 flex-1 truncate">{f.label}</span>
-                                            </div>
-                                        ))}
+                            {/* Right: Results + Chat - 55% */}
+                            <div className="flex-1 min-w-0 flex flex-col gap-6">
+                                {/* Results Panel */}
+                                <div className="flex-shrink-0 bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-h-[45%] overflow-y-auto">
+                                    <div className="mb-4">
+                                        <h3 className="text-lg font-semibold text-slate-900">Analysis Results</h3>
+                                        <p className="text-xs text-slate-500 mt-1">Model: {result?.modelUsed} • Confidence: {(result?.confidence * 100).toFixed(1)}%</p>
                                     </div>
+
+                                    {selectedModel === 'both' && result?.metadata?.commonFindings && result?.metadata?.commonFindings.length > 0 && (
+                                        <div className="mb-4 pb-4 border-b border-slate-200">
+                                            <h4 className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded mb-2 inline-block">✓ Common (Both Models)</h4>
+                                            <div className="space-y-2">
+                                                {result?.findings?.filter(f => result?.metadata?.commonFindings?.includes(f.label.toLowerCase())).map((f) => (
+                                                    <div key={f.id} className="flex items-center gap-3 p-3 hover:bg-green-50 rounded-lg cursor-pointer transition-colors border-l-2 border-green-400" onClick={() => setActiveFindingId(f.id)}>
+                                                        <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
+                                                        <span className="text-sm font-medium text-slate-800 flex-1">{f.label}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedModel === 'both' && result?.metadata?.uncommonFindings && result?.metadata?.uncommonFindings.length > 0 && (
+                                        <div className="mb-4 pb-4 border-b border-slate-200">
+                                            <h4 className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded mb-2 inline-block">⚠ Single Model</h4>
+                                            <div className="space-y-2">
+                                                {result?.findings?.filter(f => result?.metadata?.uncommonFindings?.includes(f.label.toLowerCase())).map((f) => (
+                                                    <div key={f.id} className="flex items-center gap-3 p-3 hover:bg-amber-50 rounded-lg cursor-pointer transition-colors border-l-2 border-amber-400" onClick={() => setActiveFindingId(f.id)}>
+                                                        <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
+                                                        <span className="text-sm text-slate-800 flex-1">{f.label}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedModel !== 'both' && (
+                                        <div className="space-y-2">
+                                            {result?.findings?.map((f) => (
+                                                <div key={f.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors border-l-2 border-blue-400" onClick={() => setActiveFindingId(f.id)}>
+                                                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
+                                                    <div className="flex-1">
+                                                        <span className="text-sm font-medium text-slate-800 block">{f.label}</span>
+                                                        <span className="text-xs text-slate-500">{f.description}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Chat - Flex grow */}
-                                <div className="flex-1 min-h-0 bg-white rounded-2xl border-2 border-slate-200 shadow-lg overflow-hidden">
+                                <div className="flex-1 min-h-0 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                                     <AgentChatInterface
                                         findings={result?.findings}
                                         analysisResult={result}
@@ -273,23 +308,65 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
 
                                 {/* Results Tab */}
                                 {mobileTab === 'results' && (
-                                    <div className="h-full overflow-y-auto p-4 space-y-3">
-                                        <h3 className="font-semibold text-slate-900">Detected Findings</h3>
-                                        {result?.findings?.map((f) => (
-                                            <div key={f.id} className="bg-white rounded-xl border border-slate-200 p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveFindingId(f.id)}>
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="flex-1">
-                                                        <h4 className="font-semibold text-slate-900 text-sm">{f.label}</h4>
-                                                        <p className="text-xs text-slate-600 mt-1">{f.description}</p>
-                                                    </div>
-                                                    <div className="text-right flex-shrink-0">
-                                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                                            <span className="text-xs font-bold text-blue-600">{(f.confidence * 100).toFixed(0)}%</span>
+                                    <div className="h-full overflow-y-auto p-4 space-y-4">
+                                        <div>
+                                            <h3 className="font-semibold text-slate-900 mb-1">Analysis Results</h3>
+                                            <p className="text-xs text-slate-500">Model: {result?.modelUsed} • Confidence: {(result?.confidence * 100).toFixed(1)}%</p>
+                                        </div>
+
+                                        {selectedModel === 'both' && result?.metadata?.commonFindings && result?.metadata?.commonFindings.length > 0 && (
+                                            <div className="space-y-2">
+                                                <h4 className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded inline-block">✓ Common (Both)</h4>
+                                                <div className="space-y-2">
+                                                    {result?.findings?.filter(f => result?.metadata?.commonFindings?.includes(f.label.toLowerCase())).map((f) => (
+                                                        <div key={f.id} className="bg-green-50 rounded-lg p-3 border-l-2 border-green-400 cursor-pointer" onClick={() => setActiveFindingId(f.id)}>
+                                                            <div className="flex items-start gap-2">
+                                                                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
+                                                                <div>
+                                                                    <h5 className="font-medium text-sm text-slate-900">{f.label}</h5>
+                                                                    <p className="text-xs text-slate-600">{f.description}</p>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    ))}
                                                 </div>
                                             </div>
-                                        ))}
+                                        )}
+
+                                        {selectedModel === 'both' && result?.metadata?.uncommonFindings && result?.metadata?.uncommonFindings.length > 0 && (
+                                            <div className="space-y-2">
+                                                <h4 className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded inline-block">⚠ Single Model</h4>
+                                                <div className="space-y-2">
+                                                    {result?.findings?.filter(f => result?.metadata?.uncommonFindings?.includes(f.label.toLowerCase())).map((f) => (
+                                                        <div key={f.id} className="bg-amber-50 rounded-lg p-3 border-l-2 border-amber-400 cursor-pointer" onClick={() => setActiveFindingId(f.id)}>
+                                                            <div className="flex items-start gap-2">
+                                                                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
+                                                                <div>
+                                                                    <h5 className="font-medium text-sm text-slate-900">{f.label}</h5>
+                                                                    <p className="text-xs text-slate-600">{f.description}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {selectedModel !== 'both' && (
+                                            <div className="space-y-2">
+                                                {result?.findings?.map((f) => (
+                                                    <div key={f.id} className="bg-blue-50 rounded-lg p-3 border-l-2 border-blue-400 cursor-pointer" onClick={() => setActiveFindingId(f.id)}>
+                                                        <div className="flex items-start gap-2">
+                                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
+                                                            <div>
+                                                                <h5 className="font-medium text-sm text-slate-900">{f.label}</h5>
+                                                                <p className="text-xs text-slate-600">{f.description}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

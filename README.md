@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🩺 ClinicalScribe AI
+# 🩺 AiroDx AI
 
 ### AI-Powered Clinical Practice Management Platform
 
@@ -28,7 +28,7 @@ Healthcare professionals spend a significant portion of their time on administra
 - **Communication Gaps**: Fragmented patient communication leads to poor follow-up care
 - **Limited Insights**: Lack of real-time practice analytics hinders data-driven decisions
 
-**ClinicalScribe AI** addresses these challenges by providing an all-in-one AI-powered platform that automates clinical documentation, analyzes patient risk in real-time, and streamlines patient communication.
+**AiroDx AI** addresses these challenges by providing an all-in-one AI-powered platform that automates clinical documentation, analyzes patient risk in real-time, and streamlines patient communication.
 
 ---
 

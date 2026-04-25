@@ -30,7 +30,7 @@ export default function PrivacyPolicy({ onNavigate }: PrivacyPolicyProps) {
           <section>
             <h2 className="text-2xl font-semibold text-foreground mb-4">Introduction</h2>
             <p>
-              ClinicalScribe AI ("we," "us," "our," or "Company") is committed to protecting your privacy. 
+              AiroDx ("we," "us," "our," or "Company") is committed to protecting your privacy. 
               This Privacy Policy explains how we collect, use, disclose, and safeguard your information when 
               you visit our application.
             </p>
@@ -116,7 +116,7 @@ export default function PrivacyPolicy({ onNavigate }: PrivacyPolicyProps) {
       <footer className="border-t border-border bg-card py-8 mt-16">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>
-            © 2025 ClinicalScribe AI. All rights reserved.
+            © 2025 AiroDx. All rights reserved.
           </p>
         </div>
       </footer>
