@@ -35,37 +35,22 @@ export default function AuthPage({ onLogin, onBack }: AuthPageProps) {
   const [specialty, setSpecialty] = useState('');
   const [practiceName, setPracticeName] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const { signUpUser, getUser, isLoading, error } = useDatabase();
+  const { signUpUser, signInUser, isLoading, error } = useDatabase();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (isLogin) {
-      // Try database first, fallback to localStorage
       try {
-        const user = await getUser(email);
+        const user = await signInUser(email, password);
         if (user) {
           onLogin(user);
           toast.success('Welcome back!');
         } else {
-          // Fallback to localStorage
-          const savedUser = localStorage.getItem('clinicalscribe_user');
-          if (savedUser) {
-            onLogin(JSON.parse(savedUser));
-            toast.success('Welcome back!');
-          } else {
-            toast.error('No account found. Please sign up first.');
-          }
+          toast.error('Invalid credentials or account not found.');
         }
       } catch (err) {
-        // Fallback to localStorage on database error
-        const savedUser = localStorage.getItem('clinicalscribe_user');
-        if (savedUser && JSON.parse(savedUser).email === email) {
-          onLogin(JSON.parse(savedUser));
-          toast.success('Welcome back!');
-        } else {
-          toast.error('No account found. Please sign up first.');
-        }
+        toast.error(error || (err instanceof Error ? err.message : 'Login failed'));
       }
     } else {
       // Sign up
@@ -82,6 +67,7 @@ export default function AuthPage({ onLogin, onBack }: AuthPageProps) {
       try {
         const user = await signUpUser({
           email,
+          password,
           name,
           specialty,
           practiceName

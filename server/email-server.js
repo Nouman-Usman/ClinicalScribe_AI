@@ -11,7 +11,25 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
-app.use(cors());
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    // Allow non-browser clients and same-origin server-to-server requests.
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('CORS origin not allowed'));
+  },
+}));
 app.use(express.json({ limit: '1mb' }));
 
 const PORT = process.env.PORT || process.env.EMAIL_SERVER_PORT || 8787;
@@ -29,6 +47,15 @@ app.get('/health', (_, res) => {
 });
 
 app.post('/api/send-email', async (req, res) => {
+  const requiredToken = process.env.EMAIL_API_TOKEN;
+  if (requiredToken) {
+    const authHeader = req.headers.authorization || '';
+    const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    if (!providedToken || providedToken !== requiredToken) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+
   try {
     ensureSendGridConfig();
   } catch (error) {

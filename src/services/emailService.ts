@@ -41,6 +41,7 @@ export const SMTP_CONFIG = {
 };
 
 const EMAIL_API_URL = import.meta.env.VITE_EMAIL_API_URL || '/api/send-email';
+const EMAIL_API_TOKEN = import.meta.env.VITE_EMAIL_API_TOKEN || '';
 
 /**
  * Check if SMTP is configured
@@ -155,6 +156,7 @@ export async function sendEmail(emailData: EmailData): Promise<{ success: boolea
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(EMAIL_API_TOKEN ? { Authorization: `Bearer ${EMAIL_API_TOKEN}` } : {}),
       },
       body: JSON.stringify({
         to: emailData.to,

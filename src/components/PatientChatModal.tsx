@@ -8,31 +8,8 @@ import { Loader2, Send, User, Bot, Trash2, Plus, MessageSquare, X } from 'lucide
 import { cn } from '@/lib/utils';
 import { usePatientChat } from '@/hooks/usePatientChat';
 import type { Patient, User as AppUser } from '@/App';
-
-// Simple markdown to HTML converter
-function markdownToHtml(text: string): string {
-  let html = text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/__(.+?)__/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/_(.+?)_/g, '<em>$1</em>')
-    .replace(/^### (.*?)$/gm, '<h3 class="font-semibold text-base mt-2 mb-1">$1</h3>')
-    .replace(/^## (.*?)$/gm, '<h2 class="font-semibold text-lg mt-3 mb-2">$1</h2>')
-    .replace(/^# (.*?)$/gm, '<h1 class="font-semibold text-xl mt-4 mb-3">$1</h1>')
-    .replace(/^\* (.*?)$/gm, '<li class="ml-4">$1</li>')
-    .replace(/^- (.*?)$/gm, '<li class="ml-4">$1</li>')
-    .replace(/^(\d+)\. (.*?)$/gm, '<li class="ml-4">$2</li>')
-    .replace(/```(.*?)```/gs, '<pre class="bg-muted p-3 rounded text-sm overflow-x-auto my-2"><code>$1</code></pre>')
-    .replace(/`(.*?)`/g, '<code class="bg-muted px-2 py-1 rounded text-sm">$1</code>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br/>')
-    .replace(/<li/g, '<ul><li')
-    .replace(/li>/g, 'li></ul>');
-
-  html = html.replace(/<\/ul><ul>/g, '');
-  
-  return `<div class="prose prose-sm max-w-none dark:prose-invert">${html}</div>`;
-}
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface PatientChatModalProps {
   isOpen: boolean;
@@ -233,12 +210,9 @@ export function PatientChatModal({ isOpen, onClose, patient, user }: PatientChat
                             )}
                           >
                             {message.role === 'assistant' ? (
-                              <div
-                                className="text-sm"
-                                dangerouslySetInnerHTML={{
-                                  __html: markdownToHtml(message.content),
-                                }}
-                              />
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} className="text-sm prose prose-sm max-w-none dark:prose-invert">
+                                {message.content}
+                              </ReactMarkdown>
                             ) : (
                               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                             )}

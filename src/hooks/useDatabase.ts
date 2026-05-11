@@ -1,9 +1,11 @@
 import { useState, useCallback } from 'react';
 import { isSupabaseConfigured } from '@/db/client';
+import { supabase } from '@/db/client';
 import { generateUniqueId } from '@/lib/utils';
 import {
   createUser,
   getUserByEmail,
+  getUserById,
   updateUser,
   createNote,
   getNotesByUserId,
@@ -34,6 +36,7 @@ export function useDatabase() {
 
   const signUpUser = useCallback(async (userData: {
     email: string;
+    password: string;
     name: string;
     specialty?: string;
     practiceName?: string;
@@ -47,14 +50,28 @@ export function useDatabase() {
         specialty: userData.specialty || '',
         practiceName: userData.practiceName || '',
       };
-      localStorage.setItem('clinicalscribe_user', JSON.stringify(user));
       return user;
     }
 
     setIsLoading(true);
     setError(null);
     try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      const authUserId = authData.user?.id;
+      if (!authUserId) {
+        throw new Error('Sign-up succeeded but no auth user id was returned.');
+      }
+
       const dbUser = await createUser({
+        id: authUserId,
         email: userData.email,
         name: userData.name,
         specialty: userData.specialty,
@@ -72,26 +89,41 @@ export function useDatabase() {
     }
   }, [isConfigured]);
 
-  const getUser = useCallback(async (email: string): Promise<AppUser | null> => {
+  const signInUser = useCallback(async (email: string, password: string): Promise<AppUser | null> => {
     if (!isConfigured) {
-      // Fallback to localStorage
-      const savedUser = localStorage.getItem('clinicalscribe_user');
-      if (savedUser) {
-        return JSON.parse(savedUser);
-      }
       return null;
     }
 
     setIsLoading(true);
     setError(null);
     try {
-      const dbUser = await getUserByEmail(email);
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (authError) {
+        throw authError;
+      }
+
+      const authUserId = authData.user?.id;
+      if (!authUserId) {
+        return null;
+      }
+
+      const dbUser = await getUserById(authUserId);
       if (dbUser) {
         return dbUserToAppUser(dbUser);
       }
+
+      // Backfill user profile row if auth exists but profile row does not.
+      const fallbackByEmail = await getUserByEmail(email);
+      if (fallbackByEmail) {
+        return dbUserToAppUser(fallbackByEmail);
+      }
+
       return null;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to get user');
+      setError(err instanceof Error ? err.message : 'Failed to sign in');
       return null;
     } finally {
       setIsLoading(false);
@@ -322,7 +354,7 @@ export function useDatabase() {
 
     // User operations
     signUpUser,
-    getUser,
+    signInUser,
 
     // Note operations
     saveNote,

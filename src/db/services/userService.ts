@@ -1,7 +1,7 @@
 import supabase, { isSupabaseConfigured } from '../client';
 import type { User, NewUser, UserSettings } from '../schema';
 
-export async function createUser(userData: Omit<NewUser, 'id' | 'createdAt' | 'updatedAt'>): Promise<User | null> {
+export async function createUser(userData: Omit<NewUser, 'createdAt' | 'updatedAt'>): Promise<User | null> {
   if (!isSupabaseConfigured()) {
     console.warn('Supabase not configured');
     return null;
@@ -10,6 +10,7 @@ export async function createUser(userData: Omit<NewUser, 'id' | 'createdAt' | 'u
   const { data, error } = await supabase
     .from('users')
     .insert({
+      id: userData.id,
       email: userData.email,
       name: userData.name,
       specialty: userData.specialty,
