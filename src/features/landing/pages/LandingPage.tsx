@@ -113,7 +113,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           <ScrollSequence frameCount={160} className="absolute inset-0 z-0" />
           
           {/* Overlay Content */}
-          <div className="absolute inset-0 z-10 flex items-center bg-gradient-to-r from-[#020617] via-transparent to-transparent">
+          <div className="absolute inset-0 z-10 flex items-center bg-gradient-to-b md:bg-gradient-to-r from-[#020617]/90 via-[#020617]/60 md:via-transparent to-transparent pt-20 md:pt-0">
             <div className="max-w-7xl mx-auto px-6 w-full grid lg:grid-cols-2 gap-12 items-center">
               <div className="hero-content flex flex-col gap-8">
                 <div className="flex items-center gap-3">

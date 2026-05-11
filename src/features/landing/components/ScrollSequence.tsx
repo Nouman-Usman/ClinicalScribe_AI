@@ -43,41 +43,28 @@ export default function ScrollSequence({ frameCount, className }: ScrollSequence
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    // Initial render
+    const firstImg = images[0];
+    if (!firstImg) return;
+
+    // Set canvas internal resolution to exact image dimensions
+    // This prevents blurriness and distortion from manual canvas scaling
+    canvas.width = firstImg.width;
+    canvas.height = firstImg.height;
+
+    // Enable high quality image smoothing
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+
     const render = (index: number) => {
       const img = images[index];
       if (!img) return;
 
-      // Use logical dimensions for clear and draw
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
-      context.clearRect(0, 0, w, h);
-      
-      // Draw image and scale to cover
-      const scale = Math.max(w / img.width, h / img.height);
-      const x = (w / 2) - (img.width / 2) * scale;
-      const y = (h / 2) - (img.height / 2) * scale;
-      context.drawImage(img, x, y, img.width * scale, img.height * scale);
+      // Clear the canvas and draw the frame at native resolution
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(img, 0, 0, canvas.width, canvas.height);
     };
 
-    // Set canvas dimensions with high DPI support
-    const updateSize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      canvas.style.width = `${window.innerWidth}px`;
-      canvas.style.height = `${window.innerHeight}px`;
-      
-      context.scale(dpr, dpr);
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = 'high';
-      
-      render(0);
-    };
-
-    window.addEventListener('resize', updateSize);
-    updateSize();
+    render(0);
 
     // GSAP ScrollTrigger
     const sequence = { frame: 0 };
@@ -97,7 +84,6 @@ export default function ScrollSequence({ frameCount, className }: ScrollSequence
     });
 
     return () => {
-      window.removeEventListener('resize', updateSize);
       ScrollTrigger.getAll().forEach(st => st.kill());
     };
   }, [isLoaded, images, frameCount]);
@@ -114,7 +100,9 @@ export default function ScrollSequence({ frameCount, className }: ScrollSequence
       )}
       <canvas 
         ref={canvasRef} 
-        className="block w-full h-full object-cover"
+        // Using object-cover ensures it fills the background beautifully on all devices.
+        // The previous cropping issue was due to double-scaling in JS, not the cover layout.
+        className="block w-full h-full object-cover object-center"
       />
     </div>
   );
