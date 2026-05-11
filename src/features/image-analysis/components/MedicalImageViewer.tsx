@@ -41,6 +41,15 @@ export function MedicalImageViewer({
         const handleKeyDown = (e: KeyboardEvent) => {
             if (!containerRef.current) return;
 
+            // Don't intercept keyboard shortcuts if the user is typing in an input or textarea
+            if (
+                e.target instanceof HTMLInputElement ||
+                e.target instanceof HTMLTextAreaElement ||
+                (e.target as HTMLElement).isContentEditable
+            ) {
+                return;
+            }
+
             switch (e.key) {
                 case '+':
                 case '=':
