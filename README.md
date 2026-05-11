@@ -282,6 +282,515 @@ import {
 
 ---
 
+---
+
+## 📖 User Stories & Feature Flows
+
+### 1. Clinical Documentation Flow
+**User Story:** As a healthcare provider, I want to record patient conversations and automatically generate structured clinical notes to reduce documentation time.
+
+**Flow:**
+1. User navigates to **Recording Page** (`/recording`)
+2. Selects patient (or starts general recording)
+3. Records audio conversation with patient
+4. **Speech-to-Text Service** (`transcribeAudio`) converts audio to transcription
+5. **Text Generation Service** (`generateText`) creates structured SOAP note
+6. User reviews and edits note content
+7. Note saved to database with transcription and audio URL
+8. Note appears in **Past Notes Page** (`/past-notes`)
+
+**Key Features:**
+- Real-time transcription feedback
+- Auto-generated clinical notes (SOAP format)
+- Manual editing capability
+- PDF export of notes
+- Searchable note history
+
+---
+
+### 2. Risk Assessment Flow
+**User Story:** As a physician, I need AI-powered risk scoring on every patient visit to identify high-risk patients and prioritize follow-ups.
+
+**Flow:**
+1. User completes patient visit/note creation
+2. **Risk Assessment Service** (`analyzeVisitRisk`) analyzes:
+   - Chief complaint
+   - Vitals (BP, HR, O2 sat, temp, etc.)
+   - Medications & allergies
+   - Previous visit history
+3. AI generates risk score (0-100) with level:
+   - 🟢 Low (0-25)
+   - 🟡 Moderate (26-50)
+   - 🟠 High (51-75)
+   - 🔴 Critical (76-100)
+4. Risk factors, concerns, and recommendations stored
+5. Patient risk updated in **Patients table**
+6. Risk history tracked in **PatientRiskHistory table**
+7. High-risk alerts appear on **Dashboard** (`/dashboard`)
+
+**Key Features:**
+- AI-powered risk scoring
+- Trend tracking over time
+- Risk factor breakdown
+- Smart recommendations
+- Morning briefing alerts
+
+---
+
+### 3. Patient Management Flow
+**User Story:** As a clinic manager, I want comprehensive patient profiles with medical history, medications, allergies, and risk status to provide better coordinated care.
+
+**Flow:**
+1. User navigates to **Patients Page** (`/patients`)
+2. Can search/filter patients by:
+   - Name
+   - Risk level
+   - Condition/diagnosis
+3. Click patient → **Patient Detail Page** (`/patient`)
+4. View comprehensive profile:
+   - Demographics
+   - Medical history
+   - Current medications
+   - Known allergies
+   - Insurance information
+   - Visit timeline
+   - Risk history chart
+5. Actions available:
+   - Start new visit recording
+   - View past notes
+   - Send patient communication
+   - Update patient information
+   - View risk trends
+
+**Key Features:**
+- Complete patient demographics
+- Diagnosis & medication tracking
+- Allergy management
+- Emergency contact info
+- Insurance details
+- Full audit trail
+
+---
+
+### 4. Patient Communication Flow
+**User Story:** As a doctor, I need to quickly compose and send personalized patient communications (emails, follow-ups) using patient context to improve patient engagement.
+
+**Flow:**
+1. From **Patient Detail Page**, click "Compose Email"
+2. **Patient Email Composer** opens with:
+   - Recipient email auto-filled
+   - Email type selection (visit_summary, follow_up, reminder, custom)
+3. User can:
+   - Use AI to generate email based on patient context
+   - Manually write custom email
+   - Select from templates
+4. **Email Service** (`emailService`) sends email via SMTP
+5. Email status tracked:
+   - Draft → Sent → Delivered/Failed
+6. Communication history maintained in **PatientEmails table**
+7. Patient receives contextual message with medical history reference
+
+**Key Features:**
+- AI-generated emails with patient context
+- Email templates
+- Draft/send workflow
+- Delivery tracking
+- Communication history
+
+---
+
+### 5. Patient Chat (AI Chatbot) Flow
+**User Story:** As a patient, I want to ask questions about my health and receive AI-powered responses based on my complete medical history.
+
+**Flow:**
+1. Patient navigates to **Chat Page** (`/chat`)
+2. **Chat Interface** loads previous chat session or creates new one
+3. Patient types question or concern
+4. **Text Generation Service** responds with:
+   - Patient's medical history context
+   - Relevant medications/allergies
+   - Previous diagnoses
+5. Response appears in chat thread
+6. **ChatSession** and **ChatMessage** tables store conversation
+7. Physician can review chat history from **Patient Detail Page**
+
+**Key Features:**
+- Context-aware responses
+- Medical history integration
+- Chat history tracking
+- Physician review capability
+
+---
+
+### 6. Medical Image Analysis Flow
+**User Story:** As a radiologist/pathologist, I want to upload medical images and receive AI-powered analysis to assist in diagnosis and identify findings.
+
+**Flow:**
+1. User navigates to **Image Analysis Page** (`/image-analysis`)
+2. **Image Uploader** loads frontal & lateral images
+3. Select analysis model:
+   - Pathology (AiroDx Pathology)
+   - Remedis (AiroDx Remedis)
+   - Both
+4. **Image Analysis Service** processes images:
+   - Image optimization (compression, normalization)
+   - Model inference via ML service
+   - Finding detection and confidence scoring
+5. **Analysis Results** display:
+   - Detected findings with confidence %
+   - Common vs. uncommon findings
+   - AI consultation notes
+6. Results saved to **ImageAnalyses table**
+7. Findings linked to patient record
+8. Physician can review and add clinical notes
+
+**Key Features:**
+- Multi-model analysis
+- Confidence scoring
+- Finding visualization
+- Caching for performance
+- Audit trail
+
+---
+
+### 7. Dashboard & Analytics Flow
+**User Story:** As a clinic director, I need a morning briefing and practice analytics to manage patient load and identify trends.
+
+**Flow:**
+1. User logs in → Dashboard (`/dashboard`)
+2. **Morning Briefing Panel** shows:
+   - High-priority patients (risk >= 75)
+   - Overdue follow-ups
+   - New concerning visits
+3. **Priority List Panel** displays:
+   - Ranked patients by urgency
+   - Quick action buttons
+4. **Practice Statistics Cards** show:
+   - Total patients
+   - Visits this month
+   - Average risk score
+5. **Interactive Charts** visualize:
+   - Visit patterns (daily/weekly/monthly)
+   - Patient age distribution
+   - Risk score distribution
+6. Click patient card → Navigate to **Patient Detail Page**
+
+**Key Features:**
+- Real-time priority alerts
+- Practice-wide analytics
+- Visual trend data
+- Quick patient access
+
+---
+
+## 🔌 Complete API Reference
+
+### Authentication & Database Services
+```typescript
+// User Management
+createUser(userData)                    // Register new provider
+getUser(userId)                         // Fetch user profile
+updateUser(userId, updates)             // Update user settings
+
+// Patient Management
+createPatient(userId, patientData)      // Add patient to practice
+getPatientsByUserId(userId)             // Fetch all patients
+getPatientById(patientId)               // Fetch single patient
+updatePatient(patientId, updates)       // Update patient info
+deletePatient(patientId)                // Remove patient
+
+// Visit Tracking
+createVisit(patientId, visitData)       // Record patient visit
+getVisitsByPatient(patientId)           // Fetch visit history
+updateVisit(visitId, updates)           // Update visit details
+
+// Risk Assessment
+getRiskAssessments(patientId)           // Fetch risk history
+getHighRiskPatients(userId)             // Get critical patients
+getDashboardStats(userId)               // Practice analytics
+```
+
+### AI Services & Endpoints
+
+#### Speech-to-Text
+```typescript
+// Service: speechToText.ts
+transcribeAudio(audioFile, language?, prompt?, verbose?)
+  → Promise<TranscriptionResult>
+  → Returns: { text: string, segments?: TranscriptionSegment[] }
+  
+// Usage:
+const result = await transcribeAudio(audioBlob, 'en', 
+  'Medical terminology, clinical context', true);
+```
+
+#### Text Generation & Analysis
+```typescript
+// Service: textGeneration.ts
+generateText(messages, systemPrompt?, temperature?, maxTokens?)
+  → Promise<string>
+  
+streamText(messages, systemPrompt?, temp?, tokens?, onChunk?)
+  → Promise<void> (streams chunks)
+
+// Usage:
+const note = await generateText([
+  { role: 'user', content: transcription }
+], clinicalSystemPrompt);
+```
+
+#### Risk Assessment
+```typescript
+// Service: riskAssessment.ts
+analyzeVisitRisk(visitData, patientData, previousVisits?)
+  → Promise<RiskAssessment>
+  → Returns: {
+      riskLevel: 'low' | 'moderate' | 'high' | 'critical',
+      riskScore: 0-100,
+      riskFactors: string[],
+      summary: string,
+      concerns: string[],
+      recommendations: string[],
+      followUpUrgency: string
+    }
+
+// Usage:
+const assessment = await analyzeVisitRisk({
+  chiefComplaint: 'chest pain',
+  vitals: { bp: '150/90', heartRate: 110 },
+  diagnosis: 'hypertension'
+}, patientData);
+```
+
+#### Image Analysis
+```typescript
+// Service: imageAnalysis.ts
+analyzeImages(frontalUrl, lateralUrl, modelType)
+  → Promise<ImageAnalysisResult>
+  → Returns: { findings, metadata, confidence }
+
+// Service: mlModels/mlService.ts
+analyzePathology(imageData)    // AiroDx Pathology model
+analyzeRemediS(imageData)      // AiroDx Remedis model
+
+// Usage:
+const results = await analyzeImages(frontalImage, lateralImage, 'both');
+```
+
+#### Email Service
+```typescript
+// Service: emailService.ts
+sendEmail(recipient, subject, body)
+  → Promise<{ success: boolean, messageId?: string }>
+
+generatePatientEmail(patientData, visitData, emailType)
+  → Promise<string>  (AI-generated email)
+
+// Usage:
+const email = await generatePatientEmail(patient, visit, 'follow_up');
+await sendEmail(patient.email, email.subject, email.body);
+```
+
+#### Chat Services
+```typescript
+// Doctor Chat
+generateChatResponse(messages, systemPrompt)
+  → Promise<string>
+
+// Patient Chat (with medical history context)
+generatePatientChatResponse(messages, patientContext)
+  → Promise<string>  (includes medications, allergies, history)
+```
+
+#### Text-to-Speech
+```typescript
+// Service: textToSpeech.ts
+synthesizeAudio(text, language?, voiceId?)
+  → Promise<ArrayBuffer>  (audio bytes)
+```
+
+#### PDF Export
+```typescript
+// Service: utils/pdfExport.ts
+exportNoteToPDF(note, patientName)
+  → Promise<Blob>  (PDF file)
+```
+
+### Database Tables & Schemas
+
+#### Users Table
+```typescript
+{
+  id: UUID,
+  email: string,
+  name: string,
+  specialty?: string,
+  practiceName?: string,
+  avatarUrl?: string,
+  createdAt: timestamp,
+  updatedAt: timestamp
+}
+```
+
+#### Patients Table
+```typescript
+{
+  id: UUID,
+  userId: UUID,  // Foreign key to users
+  name: string,
+  age?: number,
+  gender?: string,
+  dateOfBirth?: date,
+  phone?: string,
+  email?: string,
+  address?: string,
+  diagnoses: string[],
+  medications: string[],
+  allergies: string[],
+  emergencyContact?: string,
+  insuranceProvider?: string,
+  riskLevel: 'low' | 'moderate' | 'high' | 'critical',
+  riskScore: 0-100,
+  riskFactors: string[],
+  riskAssessedAt?: timestamp,
+  createdAt: timestamp
+}
+```
+
+#### Visits Table
+```typescript
+{
+  id: UUID,
+  patientId: UUID,
+  userId: UUID,
+  visitDate: timestamp,
+  chiefComplaint?: string,
+  vitals: {
+    bp?: string,
+    weight?: number,
+    heartRate?: number,
+    temperature?: number,
+    oxygenSaturation?: number
+  },
+  diagnosis?: string,
+  treatmentPlan?: string,
+  riskLevel?: string,
+  riskScore?: number,
+  riskFactors: string[],
+  // Clinical intelligence
+  differentials?: [{
+    rank: number,
+    condition: string,
+    icd10: string,
+    reasoning: string,
+    redFlags: string[]
+  }],
+  drugInteractions?: [{
+    drugs: string[],
+    severity: string,
+    interaction: string,
+    recommendation: string
+  }],
+  guidelineAdherence?: {
+    overallStatus: string,
+    checks: [{
+      condition: string,
+      status: string,
+      deviation?: string
+    }]
+  },
+  createdAt: timestamp
+}
+```
+
+#### Notes Table
+```typescript
+{
+  id: UUID,
+  userId: UUID,
+  patientId?: UUID,
+  patientName: string,
+  chiefComplaint?: string,
+  noteType: 'SOAP' | 'HPI' | 'PROGRESS',
+  duration: number (seconds),
+  content: {
+    subjective?: string,
+    objective?: string,
+    assessment?: string,
+    plan?: string,
+    icd10?: string,
+    cpt?: string
+  },
+  transcription?: string,
+  audioUrl?: string,
+  isArchived: boolean,
+  createdAt: timestamp
+}
+```
+
+#### Patient Risk History Table
+```typescript
+{
+  id: UUID,
+  patientId: UUID,
+  visitId?: UUID,
+  riskLevel: string,
+  riskScore: 0-100,
+  riskFactors: string[],
+  assessedBy: 'ai' | 'manual',
+  notes?: string,
+  createdAt: timestamp
+}
+```
+
+#### Image Analyses Table
+```typescript
+{
+  id: UUID,
+  userId: UUID,
+  patientId: UUID,
+  frontalImageUrl: string,
+  lateralImageUrl: string,
+  modelUsed: 'pathology' | 'remedis' | 'both',
+  findings: [{
+    id: string,
+    label: string,
+    description: string,
+    confidence: 0-100
+  }],
+  metadata: {
+    commonFindings?: string[],
+    uncommonFindings?: string[]
+  },
+  confidence: 0-100,
+  notes?: string,
+  createdAt: timestamp
+}
+```
+
+---
+
+## 📍 Route Map
+
+| Route | Component | Auth | Purpose |
+|-------|-----------|------|---------|
+| `/` | LandingPage | ❌ | Marketing page |
+| `/auth` | AuthPage | ❌ | User registration/login |
+| `/dashboard` | Dashboard | ✅ | Main hub - practice overview |
+| `/recording` | RecordingPage | ✅ | Voice note creation |
+| `/patient-recording` | RecordingPage | ✅ | Visit-linked voice recording |
+| `/note` | NotePage | ✅ | Single note view/edit |
+| `/past-notes` | PastNotesPage | ✅ | Note history & search |
+| `/patients` | PatientsPage | ✅ | Patient list & search |
+| `/patient` | PatientDetailPage | ✅ | Full patient profile |
+| `/chat` | ChatPage | ✅ | AI chatbot interface |
+| `/image-analysis` | ImageAnalysisPage | ✅ | Medical image analysis |
+| `/settings` | SettingsPage | ✅ | User preferences |
+| `/privacy` | PrivacyPolicy | ❌ | Legal docs |
+| `/terms` | TermsOfService | ❌ | Legal docs |
+
+---
+
 ## 🗺 Roadmap
 
 - [ ] Multi-provider support (OpenAI, Anthropic)

@@ -4,6 +4,7 @@ export interface Finding {
     label: string;
     confidence: number;
     description: string;
+    predictedBy?: 'pathology-detector' | 'remedis';
     region?: { x: number; y: number; width: number; height: number }; // percentage 0-100
 }
 
@@ -23,6 +24,8 @@ export interface AnalysisResult {
         remedisErrors: any[];
         commonFindings?: string[]; // Findings detected by both models
         uncommonFindings?: string[]; // Findings detected by only one model
+        pathologyOnlyFindings?: string[]; // Findings detected only by pathology detector
+        remedisOnlyFindings?: string[]; // Findings detected only by remedis
     };
 }
 
@@ -106,6 +109,7 @@ export async function analyzeImage(
                     id: `pathology-${idx}`,
                     label: pred.label,
                     confidence: pred.confidence,
+                    predictedBy: 'pathology-detector',
                     description: pred.description || `${(pred.confidence * 100).toFixed(1)}% confidence`
                 });
             });
@@ -119,6 +123,7 @@ export async function analyzeImage(
                     id: `remedis-${idx}`,
                     label: pred.label,
                     confidence: pred.confidence,
+                    predictedBy: 'remedis',
                     description: pred.description || `${(pred.confidence * 100).toFixed(1)}% confidence`
                 });
             });
@@ -128,6 +133,8 @@ export async function analyzeImage(
         // Identify common and uncommon findings
         const commonFindings: string[] = [];
         const uncommonFindings: string[] = [];
+        const pathologyOnlyFindings: string[] = [];
+        const remedisOnlyFindings: string[] = [];
 
         if (pathologyLabels.size > 0 && remedisLabels.size > 0) {
             // Common: detected by both models
@@ -136,13 +143,25 @@ export async function analyzeImage(
                     commonFindings.push(label);
                 } else {
                     uncommonFindings.push(label);
+                    pathologyOnlyFindings.push(label);
                 }
             });
             // Uncommon: only in REMEDIS
             remedisLabels.forEach(label => {
                 if (!pathologyLabels.has(label)) {
                     uncommonFindings.push(label);
+                    remedisOnlyFindings.push(label);
                 }
+            });
+        } else if (pathologyLabels.size > 0) {
+            pathologyLabels.forEach(l => {
+                uncommonFindings.push(l);
+                pathologyOnlyFindings.push(l);
+            });
+        } else if (remedisLabels.size > 0) {
+            remedisLabels.forEach(l => {
+                uncommonFindings.push(l);
+                remedisOnlyFindings.push(l);
             });
         }
 
@@ -173,7 +192,9 @@ export async function analyzeImage(
                 pathologyDetectorErrors: result.errors.filter(e => e.modelType === 'pathology-detector'),
                 remedisErrors: result.errors.filter(e => e.modelType === 'remedis-diagnostic'),
                 commonFindings: commonFindings.length > 0 ? commonFindings : undefined,
-                uncommonFindings: uncommonFindings.length > 0 ? uncommonFindings : undefined
+                uncommonFindings: uncommonFindings.length > 0 ? uncommonFindings : undefined,
+                pathologyOnlyFindings: pathologyOnlyFindings.length > 0 ? pathologyOnlyFindings : undefined,
+                remedisOnlyFindings: remedisOnlyFindings.length > 0 ? remedisOnlyFindings : undefined
             }
         };
     } catch (error) {

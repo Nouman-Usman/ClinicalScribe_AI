@@ -3,9 +3,11 @@ import { MedicalImageViewer } from '@/features/image-analysis/components/Medical
 import { AgentChatInterface } from '@/features/image-analysis/components/AgentChatInterface';
 import { ImageUploader } from '@/features/image-analysis/components/ImageUploader';
 import { ModelSelector } from '@/features/image-analysis/components/ModelSelector';
+import { AnalysisLoading } from '@/features/image-analysis/components/AnalysisLoading';
 import { analyzeImage, type AnalysisResult, type ModelId } from '@/services/imageAnalysis';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -482,20 +484,13 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
                                     className="w-full py-8 text-lg font-semibold medical-gradient"
                                     size="lg"
                                 >
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                            Analyzing Images...
-                                        </>
-                                    ) : (
-                                        <>
-                                            Start Analysis ({selectedModel})
-                                        </>
-                                    )}
+                                    Start Analysis ({selectedModel})
                                 </Button>
                             )}
                         </div>
-                    ) : selectedPatient && (result || isLoading) ? (
+                    ) : selectedPatient && isLoading ? (
+                        <AnalysisLoading frontalUrl={frontUrl} lateralUrl={lateralUrl} />
+                    ) : selectedPatient && result ? (
                         // Results Screen
                         <div className="space-y-6">
                         {/* Desktop: Professional Layout */}
@@ -522,12 +517,21 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
 
                                     {selectedModel === 'both' && result?.metadata?.commonFindings && result?.metadata?.commonFindings.length > 0 && (
                                         <div className="mb-4 pb-4 border-b border-slate-200">
-                                            <h4 className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded mb-2 inline-block">✓ Common (Both Models)</h4>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h4 className="text-xs font-bold text-green-700 bg-green-50 px-2 py-1 rounded inline-block">✓ Consensus (Both Models)</h4>
+                                                <Badge variant="outline" className="text-[10px] bg-green-50/50">High Reliability</Badge>
+                                            </div>
                                             <div className="space-y-2">
                                                 {result?.findings?.filter(f => result?.metadata?.commonFindings?.includes(f.label.toLowerCase())).map((f) => (
-                                                    <div key={f.id} className="flex items-center gap-3 p-3 hover:bg-green-50 rounded-lg cursor-pointer transition-colors border-l-2 border-green-400" onClick={() => setActiveFindingId(f.id)}>
-                                                        <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
-                                                        <span className="text-sm font-medium text-slate-800 flex-1">{f.label}</span>
+                                                    <div key={f.id} className="flex items-center gap-3 p-3 hover:bg-green-50 rounded-lg cursor-pointer transition-colors border-l-2 border-green-400 group" onClick={() => setActiveFindingId(f.id)}>
+                                                        <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0 text-xs font-bold group-hover:scale-110 transition-transform">{(f.confidence * 100).toFixed(0)}%</div>
+                                                        <div className="flex-1">
+                                                            <span className="text-sm font-semibold text-slate-800">{f.label}</span>
+                                                            <div className="flex gap-2 mt-1">
+                                                                <span className="text-[10px] text-slate-500 font-medium px-1.5 py-0.5 bg-slate-100 rounded">Pathology Detector</span>
+                                                                <span className="text-[10px] text-slate-500 font-medium px-1.5 py-0.5 bg-slate-100 rounded">REMEDIS</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -536,12 +540,28 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
 
                                     {selectedModel === 'both' && result?.metadata?.uncommonFindings && result?.metadata?.uncommonFindings.length > 0 && (
                                         <div className="mb-4 pb-4 border-b border-slate-200">
-                                            <h4 className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded mb-2 inline-block">⚠ Single Model</h4>
+                                            <h4 className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded mb-2 inline-block">⚠ Specific Predictions</h4>
                                             <div className="space-y-2">
                                                 {result?.findings?.filter(f => result?.metadata?.uncommonFindings?.includes(f.label.toLowerCase())).map((f) => (
-                                                    <div key={f.id} className="flex items-center gap-3 p-3 hover:bg-amber-50 rounded-lg cursor-pointer transition-colors border-l-2 border-amber-400" onClick={() => setActiveFindingId(f.id)}>
-                                                        <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
-                                                        <span className="text-sm text-slate-800 flex-1">{f.label}</span>
+                                                    <div key={f.id} className={cn(
+                                                        "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors border-l-2 group",
+                                                        f.predictedBy === 'pathology-detector' ? "hover:bg-blue-50 border-blue-400" : "hover:bg-purple-50 border-purple-400"
+                                                    )} onClick={() => setActiveFindingId(f.id)}>
+                                                        <div className={cn(
+                                                            "w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold group-hover:scale-110 transition-transform",
+                                                            f.predictedBy === 'pathology-detector' ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+                                                        )}>{(f.confidence * 100).toFixed(0)}%</div>
+                                                        <div className="flex-1">
+                                                            <span className="text-sm text-slate-800 font-medium">{f.label}</span>
+                                                            <div className="mt-1">
+                                                                <span className={cn(
+                                                                    "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded",
+                                                                    f.predictedBy === 'pathology-detector' ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                                                                )}>
+                                                                    {f.predictedBy === 'pathology-detector' ? 'Pathology Detector' : 'REMEDIS Diagnostic'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -554,8 +574,13 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
                                                 <div key={f.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors border-l-2 border-blue-400" onClick={() => setActiveFindingId(f.id)}>
                                                     <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
                                                     <div className="flex-1">
-                                                        <span className="text-sm font-medium text-slate-800 block">{f.label}</span>
-                                                        <span className="text-xs text-slate-500">{f.description}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-semibold text-slate-800">{f.label}</span>
+                                                            <Badge variant="outline" className="text-[9px] uppercase h-4 px-1">
+                                                                {f.predictedBy === 'pathology-detector' ? 'DINO v2' : 'REMEDIS'}
+                                                            </Badge>
+                                                        </div>
+                                                        <span className="text-xs text-slate-500 line-clamp-1">{f.description}</span>
                                                     </div>
                                                 </div>
                                             ))}
@@ -604,7 +629,7 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
 
                                 {/* Results Tab */}
                                 {mobileTab === 'results' && (
-                                    <div className="h-full overflow-y-auto p-4 space-y-4">
+                                    <div className="h-full overflow-y-auto p-4 space-y-4 pb-20">
                                         <div>
                                             <h3 className="font-semibold text-slate-900 mb-1">Analysis Results</h3>
                                             <p className="text-xs text-slate-500">Model: {result?.modelUsed} • Confidence: {(result?.confidence * 100).toFixed(1)}%</p>
@@ -612,15 +637,18 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
 
                                         {selectedModel === 'both' && result?.metadata?.commonFindings && result?.metadata?.commonFindings.length > 0 && (
                                             <div className="space-y-2">
-                                                <h4 className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded inline-block">✓ Common (Both)</h4>
+                                                <h4 className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded inline-block">✓ Consensus (Both)</h4>
                                                 <div className="space-y-2">
                                                     {result?.findings?.filter(f => result?.metadata?.commonFindings?.includes(f.label.toLowerCase())).map((f) => (
                                                         <div key={f.id} className="bg-green-50 rounded-lg p-3 border-l-2 border-green-400 cursor-pointer" onClick={() => setActiveFindingId(f.id)}>
-                                                            <div className="flex items-start gap-2">
-                                                                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
+                                                            <div className="flex items-start gap-3">
+                                                                <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
                                                                 <div>
-                                                                    <h5 className="font-medium text-sm text-slate-900">{f.label}</h5>
-                                                                    <p className="text-xs text-slate-600">{f.description}</p>
+                                                                    <h5 className="font-semibold text-sm text-slate-900">{f.label}</h5>
+                                                                    <div className="flex gap-1.5 mt-1">
+                                                                        <span className="text-[9px] text-slate-500 bg-slate-100 px-1 py-0.5 rounded">Pathology</span>
+                                                                        <span className="text-[9px] text-slate-500 bg-slate-100 px-1 py-0.5 rounded">REMEDIS</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -631,15 +659,26 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
 
                                         {selectedModel === 'both' && result?.metadata?.uncommonFindings && result?.metadata?.uncommonFindings.length > 0 && (
                                             <div className="space-y-2">
-                                                <h4 className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded inline-block">⚠ Single Model</h4>
+                                                <h4 className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded inline-block">⚠ Specific Predictions</h4>
                                                 <div className="space-y-2">
                                                     {result?.findings?.filter(f => result?.metadata?.uncommonFindings?.includes(f.label.toLowerCase())).map((f) => (
-                                                        <div key={f.id} className="bg-amber-50 rounded-lg p-3 border-l-2 border-amber-400 cursor-pointer" onClick={() => setActiveFindingId(f.id)}>
-                                                            <div className="flex items-start gap-2">
-                                                                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
+                                                        <div key={f.id} className={cn(
+                                                            "rounded-lg p-3 border-l-2 cursor-pointer",
+                                                            f.predictedBy === 'pathology-detector' ? "bg-blue-50 border-blue-400" : "bg-purple-50 border-purple-400"
+                                                        )} onClick={() => setActiveFindingId(f.id)}>
+                                                            <div className="flex items-start gap-3">
+                                                                <div className={cn(
+                                                                    "w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold",
+                                                                    f.predictedBy === 'pathology-detector' ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
+                                                                )}>{(f.confidence * 100).toFixed(0)}%</div>
                                                                 <div>
-                                                                    <h5 className="font-medium text-sm text-slate-900">{f.label}</h5>
-                                                                    <p className="text-xs text-slate-600">{f.description}</p>
+                                                                    <h5 className="font-semibold text-sm text-slate-900">{f.label}</h5>
+                                                                    <span className={cn(
+                                                                        "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mt-1 inline-block",
+                                                                        f.predictedBy === 'pathology-detector' ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                                                                    )}>
+                                                                        {f.predictedBy === 'pathology-detector' ? 'Pathology Detector' : 'REMEDIS Diagnostic'}
+                                                                    </span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -652,11 +691,16 @@ export default function ImageAnalysisPage({ user, onNavigate, onLogout }: ImageA
                                             <div className="space-y-2">
                                                 {result?.findings?.map((f) => (
                                                     <div key={f.id} className="bg-blue-50 rounded-lg p-3 border-l-2 border-blue-400 cursor-pointer" onClick={() => setActiveFindingId(f.id)}>
-                                                        <div className="flex items-start gap-2">
-                                                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 flex-shrink-0 text-xs font-bold">{(f.confidence * 100).toFixed(0)}%</div>
                                                             <div>
-                                                                <h5 className="font-medium text-sm text-slate-900">{f.label}</h5>
-                                                                <p className="text-xs text-slate-600">{f.description}</p>
+                                                                <div className="flex items-center gap-2">
+                                                                    <h5 className="font-semibold text-sm text-slate-900">{f.label}</h5>
+                                                                    <Badge variant="outline" className="text-[8px] uppercase h-3.5 px-1 leading-none">
+                                                                        {f.predictedBy === 'pathology-detector' ? 'DINO' : 'REMEDIS'}
+                                                                    </Badge>
+                                                                </div>
+                                                                <p className="text-xs text-slate-600 line-clamp-1">{f.description}</p>
                                                             </div>
                                                         </div>
                                                     </div>
