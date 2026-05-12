@@ -141,14 +141,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
                     size="lg"
                     className="bg-cyan-600 hover:bg-cyan-500 text-white h-16 px-10 text-xl font-black rounded-2xl shadow-[0_0_40px_rgba(8,145,178,0.4)] transition-all hover:scale-105"
                   >
-                    Start Free Trial
-                  </Button>
-                  <Button 
-                    variant="ghost"
-                    size="lg"
-                    className="h-14 px-8 text-lg font-bold text-slate-300 hover:text-white hover:bg-white/5 border border-white/5 rounded-2xl"
-                  >
-                    Watch Demo
+                      Get Started
                   </Button>
                 </div>
 
