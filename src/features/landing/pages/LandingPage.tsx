@@ -43,7 +43,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
     // Text Reveal for sections
     gsap.utils.toArray<HTMLElement>('.reveal-text').forEach((text) => {
       gsap.from(text, {
-        scrollTrigger: {
+        scrollTrigger: { 
           trigger: text,
           start: 'top 85%',
         },
